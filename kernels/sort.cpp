@@ -1,5 +1,3 @@
-#include "kernels/sort.hpp"
-
 #include <algorithm>
 #include <execution>
 
