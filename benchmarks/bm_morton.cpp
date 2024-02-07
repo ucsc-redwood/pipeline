@@ -1,16 +1,13 @@
-#include "kernels/morton.hpp"
-
 #include <benchmark/benchmark.h>
 #include <omp.h>
 
+#include <execution>
 #include <glm/glm.hpp>
 
-namespace bm = benchmark;
+#include "config.hpp"
+#include "kernels/morton.hpp"
 
-constexpr auto kN = 10'000'000;
-constexpr auto kMin = 0.0f;
-constexpr auto kMax = 1024.0f;
-constexpr auto kRange = kMax - kMin;
+namespace bm = benchmark;
 
 static void BM_SinglePointToCode(bm::State& st) {
   auto x = 0.0f;
@@ -33,7 +30,25 @@ static void BM_Morton32(bm::State& st) {
 
   for (auto _ : st) {
     k_ComputeMortonCode(data, morton_keys, kN, kMin, kRange);
-    bm::DoNotOptimize(morton_keys[0]);
+  }
+
+  delete[] data;
+  delete[] morton_keys;
+}
+
+static void BM_StdTransform(bm::State& st) {
+  auto data = new glm::vec4[kN];
+  auto morton_keys = new unsigned int[kN];
+
+  for (auto _ : st) {
+    std::transform(std::execution::par_unseq,
+                   data,
+                   data + kN,
+                   morton_keys,
+                   [&](const auto& v) {
+                     return single_point_to_code_v2(
+                         v.x, v.y, v.z, kMin, kRange);
+                   });
   }
 
   delete[] data;
@@ -41,6 +56,8 @@ static void BM_Morton32(bm::State& st) {
 }
 
 BENCHMARK(BM_SinglePointToCode);
+
+BENCHMARK(BM_StdTransform)->Unit(bm::kMillisecond);
 
 BENCHMARK(BM_Morton32)
     ->RangeMultiplier(2)

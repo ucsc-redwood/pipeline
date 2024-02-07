@@ -1,10 +1,12 @@
 add_requires("benchmark")
 
-target("benchmark")
-    set_kind("binary")
-    add_includedirs("../include")
-    add_files("morton.cpp")
-    add_packages("benchmark", "glm", "openmp")
-    add_deps("kernels")
-
-
+-- for each file in current directory starts with "bm_" create a benchmark
+for _, file in ipairs(os.files("bm_*.cpp")) do
+    local name = path.basename(file)
+    target(name)
+        set_kind("binary")
+        add_includedirs("../include")
+        add_files(file)
+        add_packages("benchmark", "glm", "openmp")
+        add_deps("kernels")
+end

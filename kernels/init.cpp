@@ -2,14 +2,14 @@
 
 #include <omp.h>
 
-void k_InitDescending(unsigned int *sort, size_t n) {
+void k_InitDescending(unsigned int *sort, int n) {
 #pragma omp parallel for schedule(static)
   for (auto i = 0; i < n; i++) {
     sort[i] = n - i;
   }
 }
 
-void k_InitRandom(unsigned int *sort, size_t n, int seed) {
+void k_InitRandom(unsigned int *sort, int n, int seed) {
   srand(seed);
 
 #pragma omp parallel for schedule(static)
@@ -19,7 +19,7 @@ void k_InitRandom(unsigned int *sort, size_t n, int seed) {
 }
 
 void k_InitRandomVec4(
-    glm::vec4 *u_data, size_t n, float min, float range, int seed) {
+    glm::vec4 *u_data, int n, float min, float range, int seed) {
   srand(seed);
 
 #pragma omp parallel for schedule(static)
