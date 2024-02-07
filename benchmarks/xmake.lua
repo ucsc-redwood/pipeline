@@ -6,6 +6,7 @@ for _, file in ipairs(os.files("bm_*.cpp")) do
     target(name)
         set_kind("binary")
         add_includedirs("../include")
+        add_headerfiles("../include/**/*.hpp")
         add_files(file)
         add_packages("benchmark", "glm", "openmp")
         add_deps("kernels")

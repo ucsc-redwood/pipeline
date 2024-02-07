@@ -22,7 +22,7 @@ int main(const int argc, const char **argv) {
   app.add_option("-t,--threads", n_threads, "Number of threads to use")
       ->check(CLI::Range(1, 48));
 
-  CLI11_PARSE(app, argc, argv);
+  CLI11_PARSE(app, argc, argv)
 
   spdlog::info("n = {}", n);
   spdlog::info("n_threads = {}", n_threads);
@@ -35,7 +35,7 @@ int main(const int argc, const char **argv) {
   constexpr auto max = 1024.0f;
   constexpr auto range = max - min;
 
-  auto u_input = new glm::vec4[n];
+  const auto u_input = new glm::vec4[n];
   auto u_sort = new unsigned int[n];
 
   constexpr auto seed = 114514;
@@ -64,7 +64,7 @@ int main(const int argc, const char **argv) {
   spdlog::info("n_unique = {}", n_unique);
   spdlog::info("n - n_unique = {}", n - n_unique);
 
-  auto tree = std::make_unique<RadixTree>(u_sort, n_unique, min, max);
+  const auto tree = std::make_unique<RadixTree>(u_sort, n_unique, min, max);
   k_BuildRadixTree(tree.get());
 
   for (auto i = 0; i < 32; ++i) {

@@ -14,7 +14,7 @@ struct BrtNodes {
     parent = new int[n];
   }
 
-  void deallocate() {
+  void deallocate() const {
     delete[] hasLeafLeft;
     delete[] hasLeafRight;
     delete[] prefixN;
@@ -64,4 +64,4 @@ struct RadixTree {
   float max_coord;
 };
 
-void k_BuildRadixTree(RadixTree* tree);
+void k_BuildRadixTree(const RadixTree* tree);

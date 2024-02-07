@@ -6,7 +6,7 @@ set_languages("cxx17")
 set_warnings("all")
 set_optimize("fastest")
 
-add_requires("openmp")
+add_requires("openmp", "glm")
 
 includes("kernels")
 includes("benchmarks")

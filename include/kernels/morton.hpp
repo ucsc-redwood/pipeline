@@ -9,13 +9,13 @@
 // we can use 21 chunk of 3-bits, so 63. 1 bit is wasted.
 // enum { MORTON_BITS = 30 };
 
-constexpr auto MORTON_BITS = 30;
+constexpr auto morton_bits = 30;
 
 using MortonT = unsigned int;
 using CoordT = unsigned int;
 
 static MortonT morton3D_SplitBy3bits(const CoordT a) {
-  MortonT x = ((MortonT)a) & 0x000003ff;
+  MortonT x = static_cast<MortonT>(a) & 0x000003ff;
   x = (x | x << 16) & 0x30000ff;
   x = (x | x << 8) & 0x0300f00f;
   x = (x | x << 4) & 0x30c30c3;
@@ -37,7 +37,7 @@ static CoordT morton3D_GetThirdBits(const MortonT m) {
   return x;
 }
 
-static inline void m3D_d_magicbits(const MortonT m, CoordT* xyz) {
+static void m3D_d_magicbits(const MortonT m, CoordT* xyz) {
   xyz[0] = morton3D_GetThirdBits(m);
   xyz[1] = morton3D_GetThirdBits(m >> 1);
   xyz[2] = morton3D_GetThirdBits(m >> 2);

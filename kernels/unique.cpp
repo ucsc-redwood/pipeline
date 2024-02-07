@@ -1,10 +1,10 @@
-int k_CountUnique(unsigned int *keys, int n) {
+int k_CountUnique(unsigned int *keys, const int n) {
   if (n == 0) {
     return 0;
   }
 
   int j = 0;
-  for (int i = 1; i < n; ++i) {
+  for (auto i = 1; i < n; ++i) {
     if (keys[i] != keys[j]) {
       ++j;
       keys[j] = keys[i];

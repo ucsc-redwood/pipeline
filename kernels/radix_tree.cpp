@@ -6,6 +6,7 @@
 #if defined(__GNUC__) || defined(__clang__)
 #define CLZ(x) __builtin_clz(x)
 #elif defined(_MSC_VER)
+#include <intrin.h>
 #define CLZ(x) _lzcnt_u32(x)
 #else
 #error "CLZ not supported on this platform"
@@ -17,7 +18,8 @@ unsigned int ceil_div_u32(const unsigned int a, const unsigned int b) {
 }
 
 uint8_t delta_u32(const unsigned int a, const unsigned int b) {
-  const unsigned int bit1_mask = ((unsigned int)1) << (sizeof(a) * 8 - 1);
+  constexpr unsigned int bit1_mask = static_cast<unsigned int>(1)
+                                     << (sizeof(a) * 8 - 1);
   assert((a & bit1_mask) == 0);
   assert((b & bit1_mask) == 0);
   return CLZ(a ^ b) - 1;
@@ -35,46 +37,46 @@ int log2_ceil_u32(const unsigned int x) {
 
 using MortonT = unsigned int;
 
-void k_BuildRadixTree(RadixTree* tree) {
+void k_BuildRadixTree(const RadixTree* tree) {
   // alias
-  const int n = tree->n_pts;
-  const MortonT* codes = tree->d_tree.morton_codes;
-  bool* has_leaf_left = tree->d_tree.hasLeafLeft;
-  bool* has_leaf_right = tree->d_tree.hasLeafRight;
-  uint8_t* prefix_n = tree->d_tree.prefixN;
-  int* left_child = tree->d_tree.leftChild;
-  int* parent = tree->d_tree.parent;
+  const auto n = tree->n_pts;
+  const auto codes = tree->d_tree.morton_codes;
+  const auto has_leaf_left = tree->d_tree.hasLeafLeft;
+  const auto has_leaf_right = tree->d_tree.hasLeafRight;
+  const auto prefix_n = tree->d_tree.prefixN;
+  const auto left_child = tree->d_tree.leftChild;
+  const auto parent = tree->d_tree.parent;
 
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < n; i++) {
-    const MortonT code_i = codes[i];
+    const auto code_i = codes[i];
     // Determine direction of the range (+1 or -1)
     int d;
     if (i == 0) {
       d = 1;
     } else {
-      const uint8_t delta_diff_right = delta_u32(code_i, codes[i + 1]);
-      const uint8_t delta_diff_left = delta_u32(code_i, codes[i - 1]);
-      const int direction_difference = delta_diff_right - delta_diff_left;
+      const auto delta_diff_right = delta_u32(code_i, codes[i + 1]);
+      const auto delta_diff_left = delta_u32(code_i, codes[i - 1]);
+      const auto direction_difference = delta_diff_right - delta_diff_left;
       d = (direction_difference > 0) - (direction_difference < 0);
     }
 
     // Compute upper bound for the length of the range
 
-    MortonT l = 0;
+    auto l = 0;
     if (i == 0) {
       // First node is root, covering whole tree
       l = n - 1;
     } else {
-      const uint8_t delta_min = delta_u32(code_i, codes[i - d]);
-      MortonT l_max = 2;
+      const auto delta_min = delta_u32(code_i, codes[i - d]);
+      auto l_max = 2;
       // Cast to ptrdiff_t so in case the result is negative (since d is +/- 1),
       // we can catch it and not index out of bounds
-      while (i + (ptrdiff_t)l_max * d >= 0 && i + l_max * d <= n &&
+      while (i + static_cast<ptrdiff_t>(l_max) * d >= 0 && i + l_max * d <= n &&
              delta_u32(code_i, codes[i + l_max * d]) > delta_min) {
         l_max *= 2;
       }
-      const int l_cutoff = (d == -1) ? i : n - i;
+      const auto l_cutoff = (d == -1) ? i : n - i;
       int t;
       int divisor;
       // Find the other end using binary search
@@ -87,16 +89,16 @@ void k_BuildRadixTree(RadixTree* tree) {
       }
     }
 
-    const int j = i + l * d;
+    const auto j = i + l * d;
 
     // Find the split position using binary search
-    const uint8_t delta_node = delta_u32(codes[i], codes[j]);
+    const auto delta_node = delta_u32(codes[i], codes[j]);
     prefix_n[i] = delta_node;
-    int s = 0;
-    const int max_divisor = 1 << log2_ceil_u32(l);
-    int divisor = 2;
-    const int s_cutoff = (d == -1) ? i - 1 : n - i - 1;
-    for (int t = ceil_div_u32(l, 2); divisor <= max_divisor;
+    auto s = 0;
+    const auto max_divisor = 1 << log2_ceil_u32(l);
+    auto divisor = 2;
+    const auto s_cutoff = (d == -1) ? i - 1 : n - i - 1;
+    for (auto t = ceil_div_u32(l, 2); divisor <= max_divisor;
          divisor <<= 1, t = ceil_div_u32(l, divisor)) {
       if (s + t <= s_cutoff &&
           delta_u32(code_i, codes[i + (s + t) * d]) > delta_node) {
@@ -105,7 +107,7 @@ void k_BuildRadixTree(RadixTree* tree) {
     }
 
     // Split position
-    const int gamma = i + s * d + std::min(d, 0);
+    const auto gamma = i + s * d + std::min(d, 0);
     left_child[i] = gamma;
     has_leaf_left[i] = (std::min(i, j) == gamma);
     has_leaf_right[i] = (std::max(i, j) == gamma + 1);
