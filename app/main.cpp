@@ -143,7 +143,6 @@ int main(const int argc, const char **argv) {
                   tree->d_tree.leftChild,
                   num_oct_nodes);
 
-  checkTree(root_prefix, root_level, u_oct_nodes, 0, u_sort);
 
   delete[] u_input;
   delete[] u_sort;
