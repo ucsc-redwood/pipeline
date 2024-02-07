@@ -46,11 +46,11 @@ int compare_uint32_t(const void* a, const void* b) {
   return 0;
 }
 
-void convert_xyz_to_morton_code(const glm::vec4* data,
-                                unsigned int* morton_keys,
-                                const size_t n,
-                                const float min_coord,
-                                const float range) {
+void k_ComputeMortonCode(const glm::vec4* data,
+                         unsigned int* morton_keys,
+                         const size_t n,
+                         const float min_coord,
+                         const float range) {
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < n; i++) {
     morton_keys[i] = single_point_to_code_v2(

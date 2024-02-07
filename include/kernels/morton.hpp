@@ -57,8 +57,8 @@ void morton32_to_xyz(glm::vec4* ret,
 
 int compare_uint32_t(const void* a, const void* b);
 
-void convert_xyz_to_morton_code(const glm::vec4* data,
-                                MortonT* morton_keys,
-                                size_t n,
-                                float min_coord,
-                                float range);
+void k_ComputeMortonCode(const glm::vec4* data,
+                         MortonT* morton_keys,
+                         size_t n,
+                         float min_coord,
+                         float range);

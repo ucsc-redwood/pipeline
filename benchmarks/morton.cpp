@@ -32,7 +32,7 @@ static void BM_Morton32(bm::State& st) {
   omp_set_num_threads(num_threads);
 
   for (auto _ : st) {
-    convert_xyz_to_morton_code(data, morton_keys, kN, kMin, kRange);
+    k_ComputeMortonCode(data, morton_keys, kN, kMin, kRange);
     bm::DoNotOptimize(morton_keys[0]);
   }
 
