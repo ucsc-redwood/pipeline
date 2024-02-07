@@ -55,7 +55,7 @@ struct RadixTree {
 
   ~RadixTree() { d_tree.deallocate(); }
 
-  void buildRadixTree();
+  // void buildRadixTree();
 
   BrtNodes d_tree;
   int n_pts;    // number of points (n = number of Unique morton codes)
@@ -63,3 +63,5 @@ struct RadixTree {
   float min_coord;
   float max_coord;
 };
+
+void k_BuildRadixTree(RadixTree* tree);

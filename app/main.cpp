@@ -6,7 +6,9 @@
 
 #include "kernels/init.hpp"
 #include "kernels/morton.hpp"
+#include "kernels/radix_tree.hpp"
 #include "kernels/sort.hpp"
+#include "kernels/unique.hpp"
 
 int main(const int argc, const char **argv) {
   int n = 10'000'000;
@@ -41,12 +43,12 @@ int main(const int argc, const char **argv) {
 
   // peek the first 10 elements
   for (auto i = 0; i < 10; i++) {
-    spdlog::info("u_input[{}] = ({}, {}, {}, {})",
-                 i,
-                 u_input[i].x,
-                 u_input[i].y,
-                 u_input[i].z,
-                 u_input[i].w);
+    spdlog::debug("u_input[{}] = ({}, {}, {}, {})",
+                  i,
+                  u_input[i].x,
+                  u_input[i].y,
+                  u_input[i].z,
+                  u_input[i].w);
   }
 
   k_ComputeMortonCode(u_input, u_sort, n, min, range);
@@ -55,9 +57,29 @@ int main(const int argc, const char **argv) {
 
   // peek the first 10 elements
   for (auto i = 0; i < 10; i++) {
-    spdlog::info("u_sort[{}] = {}", i, u_sort[i]);
+    spdlog::debug("u_sort[{}] = {}", i, u_sort[i]);
   }
-  
+
+  const auto n_unique = k_CountUnique(u_sort, n);
+  spdlog::info("n_unique = {}", n_unique);
+  spdlog::info("n - n_unique = {}", n - n_unique);
+
+  auto tree = std::make_unique<RadixTree>(u_sort, n_unique, min, max);
+  k_BuildRadixTree(tree.get());
+
+  for (auto i = 0; i < 32; ++i) {
+    printf(
+        "idx = %d, code = %u, prefixN = %d, left = %d, parent = %d, "
+        "leftLeaf=%d, rightLeft=%d\n",
+        i,
+        u_sort[i],
+        tree->d_tree.prefixN[i],
+        tree->d_tree.leftChild[i],
+        tree->d_tree.parent[i],
+        tree->d_tree.hasLeafLeft[i],
+        tree->d_tree.hasLeafRight[i]);
+  }
+
   delete[] u_input;
   delete[] u_sort;
 

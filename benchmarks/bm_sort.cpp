@@ -21,4 +21,3 @@ static void BM_SortUint32(bm::State& st) {
 BENCHMARK(BM_SortUint32)->Unit(bm::kMillisecond);
 
 BENCHMARK_MAIN();
-
