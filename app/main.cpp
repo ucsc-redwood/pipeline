@@ -76,7 +76,7 @@ int main(const int argc, const char **argv) {
         tree->d_tree.hasLeafRight[i]);
   }
 
-  auto u_edge_count = new int[n_unique];
+  auto u_edge_count = new int[tree->n_nodes];
 
   k_EdgeCount(
       tree->d_tree.prefixN, tree->d_tree.parent, u_edge_count, n_unique);
@@ -97,10 +97,43 @@ int main(const int argc, const char **argv) {
     spdlog::info("u_count_prefox_sum[{}] = {}", i, u_count_prefox_sum[i]);
   }
 
+  const auto num_oct_nodes = u_count_prefox_sum[tree->n_nodes];
+  spdlog::info("num_oct_nodes = {}", num_oct_nodes);
+
+  auto u_oct_nodes = new OctNode[num_oct_nodes];
+  const auto root_level = tree->d_tree.prefixN[0] / 3;
+
+  const auto root_prefix = u_sort[0] >> (morton_bits - (3 * root_level));
+
+  morton32_to_xyz(&u_oct_nodes[0].cornor,
+                  root_prefix << (morton_bits - (3 * root_level)),
+                  min,
+                  range);
+  u_oct_nodes[0].cell_size = range;
+
+  k_MakeOctNodes(u_oct_nodes,
+                 u_count_prefox_sum,
+                 u_edge_count,
+                 u_sort,
+                 tree->d_tree.prefixN,
+                 tree->d_tree.parent,
+                 min,
+                 range,
+                 n_unique);
+  // peek 32 octree nodes
+  for (auto i = 0; i < 32; ++i) {
+    printf("octree_nodes[%d].corner = (%f, %f, %f)\n",
+           i,
+           u_oct_nodes[i].cornor[0],
+           u_oct_nodes[i].cornor[1],
+           u_oct_nodes[i].cornor[2]);
+  }
+
   delete[] u_input;
   delete[] u_sort;
   delete[] u_edge_count;
   delete[] u_count_prefox_sum;
+  delete[] u_oct_nodes;
 
   return 0;
 }

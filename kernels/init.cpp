@@ -25,7 +25,7 @@ void k_InitRandomVec4(glm::vec4 *u_data,
                       const int seed) {
   srand(seed);
 
-#pragma omp parallel for schedule(static)
+  //#pragma omp parallel for schedule(static)
   for (auto i = 0; i < n; i++) {
     u_data[i][0] =
         static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * range + min;

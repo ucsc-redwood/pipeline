@@ -2,17 +2,14 @@
 
 #include <glm/glm.hpp>
 
+#include "types/morton.hpp"
+
 // Thus the maximum depth of the octree is 10 for 32-bit morton code.
 // for 32-bit morton, each 3-bit is used to encode one coordinate.
 // we can only use 10 chunk of 3-bits, so 2 bits are wasted.
 // for 64-bit morton,
 // we can use 21 chunk of 3-bits, so 63. 1 bit is wasted.
 // enum { MORTON_BITS = 30 };
-
-constexpr auto morton_bits = 30;
-
-using MortonT = unsigned int;
-using CoordT = unsigned int;
 
 static MortonT morton3D_SplitBy3bits(const CoordT a) {
   MortonT x = static_cast<MortonT>(a) & 0x000003ff;
