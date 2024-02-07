@@ -4,11 +4,7 @@
 #include <CLI/CLI.hpp>
 #include <glm/glm.hpp>
 
-#include "kernels/init.hpp"
-#include "kernels/morton.hpp"
-#include "kernels/radix_tree.hpp"
-#include "kernels/sort.hpp"
-#include "kernels/unique.hpp"
+#include "kernels/all.hpp"
 
 int main(const int argc, const char **argv) {
   int n = 10'000'000;
@@ -80,8 +76,31 @@ int main(const int argc, const char **argv) {
         tree->d_tree.hasLeafRight[i]);
   }
 
+  auto u_edge_count = new int[n_unique];
+
+  k_EdgeCount(
+      tree->d_tree.prefixN, tree->d_tree.parent, u_edge_count, n_unique);
+
+  // peek the first 10 elements
+  for (auto i = 0; i < 10; i++) {
+    spdlog::debug("u_edge_count[{}] = {}", i, u_edge_count[i]);
+  }
+
+  auto u_count_prefox_sum = new int[n_unique];
+
+  [[maybe_unused]] auto _ =
+      k_PartialSum(u_edge_count, 0, n_unique, u_count_prefox_sum);
+  u_count_prefox_sum[0] = 0;
+
+  // peek the first 10 elements
+  for (auto i = 0; i < 10; i++) {
+    spdlog::info("u_count_prefox_sum[{}] = {}", i, u_count_prefox_sum[i]);
+  }
+
   delete[] u_input;
   delete[] u_sort;
+  delete[] u_edge_count;
+  delete[] u_count_prefox_sum;
 
   return 0;
 }

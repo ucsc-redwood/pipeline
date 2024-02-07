@@ -3,12 +3,15 @@
 #include <glm/glm.hpp>
 
 #include "config.hpp"
+#include "kernels/init.hpp"
 #include "kernels/sort.hpp"
 
 namespace bm = benchmark;
 
 static void BM_SortUint32(bm::State& st) {
   auto data = new unsigned int[kN];
+
+  k_InitDescending(data, kN);
 
   for (auto _ : st) {
     k_SortKeysInplace(data, kN);
