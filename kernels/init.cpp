@@ -1,6 +1,8 @@
 #include "kernels/init.hpp"
 
-// #include <omp.h>
+#include <omp.h>
+
+#include <cstdlib>
 
 void k_InitDescending(unsigned int *sort, const int n) {
 #pragma omp parallel for schedule(static)
@@ -23,16 +25,24 @@ void k_InitRandomVec4(glm::vec4 *u_data,
                       const float min,
                       const float range,
                       const int seed) {
-  srand(seed);
+  // srand(seed);
+#pragma omp parallel
+  {
+    auto tid = omp_get_thread_num();
+    unsigned int my_seed = seed + tid;
 
-  //#pragma omp parallel for schedule(static)
-  for (auto i = 0; i < n; i++) {
-    u_data[i][0] =
-        static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * range + min;
-    u_data[i][1] =
-        static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * range + min;
-    u_data[i][2] =
-        static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * range + min;
-    u_data[i][3] = 1.0f;
+#pragma omp parallel for schedule(static)
+    for (auto i = 0; i < n; i++) {
+      u_data[i][0] = static_cast<float>(rand_r(&my_seed)) /
+                         static_cast<float>(RAND_MAX) * range +
+                     min;
+      u_data[i][1] = static_cast<float>(rand_r(&my_seed)) /
+                         static_cast<float>(RAND_MAX) * range +
+                     min;
+      u_data[i][2] = static_cast<float>(rand_r(&my_seed)) /
+                         static_cast<float>(RAND_MAX) * range +
+                     min;
+      u_data[i][3] = 1.0f;
+    }
   }
 }

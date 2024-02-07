@@ -9,9 +9,9 @@ struct OctNode {
   int child_node_mask;
   int child_leaf_mask;
 
-  void SetChild(int index, int child) {
-    children[index] = child;
-    child_node_mask |= 1 << index;
+  void SetChild(int which_child, int oct_idx) {
+    children[which_child] = oct_idx;
+    child_node_mask |= 1 << which_child;
   }
 
   void SetLeaf(int index, int leaf) {

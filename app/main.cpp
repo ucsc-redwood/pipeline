@@ -122,11 +122,14 @@ int main(const int argc, const char **argv) {
                  n_unique);
   // peek 32 octree nodes
   for (auto i = 0; i < 32; ++i) {
-    printf("octree_nodes[%d].corner = (%f, %f, %f)\n",
-           i,
-           u_oct_nodes[i].cornor[0],
-           u_oct_nodes[i].cornor[1],
-           u_oct_nodes[i].cornor[2]);
+    printf(
+        "idx = %d, parent = %d, cell_size = %f, corner = (%f, %f, %f)\n",
+        i,
+        u_oct_nodes[i].child_node_mask,
+        u_oct_nodes[i].cell_size,
+        u_oct_nodes[i].cornor.x,
+        u_oct_nodes[i].cornor.y,
+        u_oct_nodes[i].cornor.z);
   }
 
   delete[] u_input;

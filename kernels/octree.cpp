@@ -28,7 +28,8 @@ void k_MakeOctNodes(OctNode* oct_nodes,
       const auto parent = oct_idx + 1;
 
       // oct_nodes[parent].children[child_idx] = oct_idx;
-      oct_nodes[parent].SetChild(oct_idx, child_idx);
+
+      oct_nodes[parent].SetChild(child_idx, oct_idx);
 
       morton32_to_xyz(&oct_nodes[oct_idx].cornor,
                       node_prefix << (morton_bits - (3 * level)),
@@ -61,7 +62,8 @@ void k_MakeOctNodes(OctNode* oct_nodes,
       const auto child_idx = top_node_prefix & 0b111;
 
       // oct_nodes[oct_parent].children[child_idx] = oct_idx;
-      oct_nodes[oct_parent].SetChild(oct_idx, child_idx);
+      // oct_nodes[oct_parent].SetChild(oct_idx, child_idx);
+      oct_nodes[oct_parent].SetChild(child_idx, oct_idx);
 
       morton32_to_xyz(&oct_nodes[oct_idx].cornor,
                       top_node_prefix << (morton_bits - (3 * top_level)),
