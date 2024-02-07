@@ -14,8 +14,8 @@ struct OctNode {
     child_node_mask |= 1 << which_child;
   }
 
-  void SetLeaf(int index, int leaf) {
-    children[index] = leaf;
-    child_leaf_mask &= ~(1 << index);
+  void SetLeaf(int which_child, int leaf_idx) {
+    children[which_child] = leaf_idx;
+    child_leaf_mask &= ~(1 << which_child);
   }
 };

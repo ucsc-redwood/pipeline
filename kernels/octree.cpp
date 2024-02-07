@@ -1,5 +1,7 @@
 #include "kernels/octree.hpp"
 
+#include <cstdio>
+
 #include "kernels/morton.hpp"
 
 void k_MakeOctNodes(OctNode* oct_nodes,
@@ -24,12 +26,12 @@ void k_MakeOctNodes(OctNode* oct_nodes,
       const auto level = rt_prefixN[i] / 3 - j;
 
       const auto node_prefix = codes[i] >> (morton_bits - (3 * level));
-      const auto child_idx = node_prefix & 0b111;
+      const auto which_child = node_prefix & 0b111;
       const auto parent = oct_idx + 1;
 
-      // oct_nodes[parent].children[child_idx] = oct_idx;
+      // oct_nodes[parent].children[which_child] = oct_idx;
 
-      oct_nodes[parent].SetChild(child_idx, oct_idx);
+      oct_nodes[parent].SetChild(which_child, oct_idx);
 
       morton32_to_xyz(&oct_nodes[oct_idx].cornor,
                       node_prefix << (morton_bits - (3 * level)),
@@ -59,11 +61,11 @@ void k_MakeOctNodes(OctNode* oct_nodes,
       const auto top_level = rt_prefixN[i] / 3 - n_new_nodes + 1;
       const auto top_node_prefix = codes[i] >> (morton_bits - (3 * top_level));
 
-      const auto child_idx = top_node_prefix & 0b111;
+      const auto which_child = top_node_prefix & 0b111;
 
-      // oct_nodes[oct_parent].children[child_idx] = oct_idx;
-      // oct_nodes[oct_parent].SetChild(oct_idx, child_idx);
-      oct_nodes[oct_parent].SetChild(child_idx, oct_idx);
+      // oct_nodes[oct_parent].children[which_child] = oct_idx;
+      // oct_nodes[oct_parent].SetChild(oct_idx, which_child);
+      oct_nodes[oct_parent].SetChild(which_child, oct_idx);
 
       morton32_to_xyz(&oct_nodes[oct_idx].cornor,
                       top_node_prefix << (morton_bits - (3 * top_level)),
@@ -71,6 +73,72 @@ void k_MakeOctNodes(OctNode* oct_nodes,
                       range);
       oct_nodes[oct_idx].cell_size =
           range / (float)(1 << (top_level - root_level));
+    }
+  }
+}
+
+void k_LinkLeafNodes(OctNode* nodes,
+                     const int* node_offsets,
+                     const int* rt_node_counts,
+                     const MortonT* codes,
+                     const bool* rt_hasLeafLeft,
+                     const bool* rt_hasLeafRight,
+                     const uint8_t* rt_prefixN,
+                     const int* rt_parents,
+                     const int* rt_leftChild,
+                     const int N) {
+  for (auto i = 0; i < N; i++) {
+    if (rt_hasLeafLeft[i]) {
+      int leaf_idx = rt_leftChild[i];
+      int leaf_level = rt_prefixN[i] / 3 + 1;
+      MortonT leaf_prefix = codes[leaf_idx] >> (morton_bits - (3 * leaf_level));
+      int which_child = leaf_prefix & 0b111;
+      // walk up the radix tree until finding a node which contributes an
+      // octnode
+      int rt_node = i;
+      while (rt_node_counts[rt_node] == 0) {
+        rt_node = rt_parents[rt_node];
+      }
+      // the lowest octnode in the string contributed by rt_node will be the
+      // lowest index
+      int bottom_oct_idx = node_offsets[rt_node];
+      nodes[bottom_oct_idx].SetLeaf(which_child, leaf_idx);
+    }
+    if (rt_hasLeafRight[i]) {
+      int leaf_idx = rt_leftChild[i] + 1;
+      int leaf_level = rt_prefixN[i] / 3 + 1;
+      MortonT leaf_prefix = codes[leaf_idx] >> (morton_bits - (3 * leaf_level));
+      int which_child = leaf_prefix & 0b111;
+      int rt_node = i;
+      while (rt_node_counts[rt_node] == 0) {
+        rt_node = rt_parents[rt_node];
+      }
+      // the lowest octnode in the string contributed by rt_node will be the
+      // lowest index
+      int bottom_oct_idx = node_offsets[rt_node];
+      nodes[bottom_oct_idx].SetLeaf(which_child, leaf_idx);
+    }
+  }
+}
+
+void checkTree(const MortonT prefix,
+               int code_len,
+               const OctNode* nodes,
+               const int oct_idx,
+               const MortonT* codes) {
+  const OctNode& node = nodes[oct_idx];
+  for (int i = 0; i < 8; ++i) {
+    MortonT new_pref = (prefix << 3) | i;
+    if (node.child_node_mask & (1 << i)) {
+      checkTree(new_pref, code_len + 3, nodes, node.children[i], codes);
+    }
+    if (node.child_leaf_mask & (1 << i)) {
+      MortonT leaf_prefix =
+          codes[node.children[i]] >> (morton_bits - (code_len + 3));
+      if (new_pref != leaf_prefix) {
+        // spdlog::error("oh no...");
+        printf("oh no...\n");
+      }
     }
   }
 }

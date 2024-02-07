@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 
 #include "kernels/all.hpp"
+#include "kernels/octree.hpp"
 
 int main(const int argc, const char **argv) {
   int n = 10'000'000;
@@ -119,18 +120,30 @@ int main(const int argc, const char **argv) {
                  tree->d_tree.parent,
                  min,
                  range,
-                 n_unique);
+                 num_oct_nodes);
   // peek 32 octree nodes
   for (auto i = 0; i < 32; ++i) {
-    printf(
-        "idx = %d, parent = %d, cell_size = %f, corner = (%f, %f, %f)\n",
-        i,
-        u_oct_nodes[i].child_node_mask,
-        u_oct_nodes[i].cell_size,
-        u_oct_nodes[i].cornor.x,
-        u_oct_nodes[i].cornor.y,
-        u_oct_nodes[i].cornor.z);
+    printf("idx = %d, parent = %d, cell_size = %f, corner = (%f, %f, %f)\n",
+           i,
+           u_oct_nodes[i].child_node_mask,
+           u_oct_nodes[i].cell_size,
+           u_oct_nodes[i].cornor.x,
+           u_oct_nodes[i].cornor.y,
+           u_oct_nodes[i].cornor.z);
   }
+
+  k_LinkLeafNodes(u_oct_nodes,
+                  u_count_prefox_sum,
+                  u_edge_count,
+                  u_sort,
+                  tree->d_tree.hasLeafLeft,
+                  tree->d_tree.hasLeafRight,
+                  tree->d_tree.prefixN,
+                  tree->d_tree.parent,
+                  tree->d_tree.leftChild,
+                  num_oct_nodes);
+
+  checkTree(root_prefix, root_level, u_oct_nodes, 0, u_sort);
 
   delete[] u_input;
   delete[] u_sort;
