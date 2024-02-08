@@ -2,6 +2,10 @@
 
 #include "types/morton.hpp"
 
+#include <cuda_runtime.h>
+
+namespace gpu {
+
 __device__ __forceinline__ unsigned int morton3D_SplitBy3bits(
     const unsigned int a) {
   unsigned int x = ((unsigned int)a) & 0x000003ff;
@@ -39,6 +43,8 @@ __global__ void k_ComputeMorton(const glm::vec4* d_xyz,
   for (auto i = idx; i < n; i += stride)
     d_morton[i] = xyz_to_morton32(d_xyz[i], min_coord, range);
 }
+
+}  // namespace gpu
 
 void k_ComputeMortonCode(const glm::vec4* data,
                          unsigned int* morton_keys,
