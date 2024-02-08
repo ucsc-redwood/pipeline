@@ -7,7 +7,6 @@
 
 #include "common.hpp"
 #include "config.hpp"
-#include "data_loader.hpp"
 #include "kernels/radix_tree.hpp"
 #include "kernels/unique.hpp"
 #include "types/brt.hpp"
@@ -15,23 +14,25 @@
 namespace bm = benchmark;
 
 static void BM_StdUnique(bm::State& st) {
-  auto data = LoadSortedMortonCodes();
+  auto morton_code = MakeSortedMortonFake(kN);
 
   for (auto _ : st) {
-    [[maybe_unused]] auto last = std::unique(data, data + kN);
+    auto last = std::unique(morton_code, morton_code + kN);
+    bm::DoNotOptimize(last);
   }
 
-  delete[] data;
+  delete[] morton_code;
 }
 
 static void BM_Unique(bm::State& st) {
-  auto data = LoadSortedMortonCodes();
+  auto morton_code = MakeSortedMortonFake(kN);
 
   for (auto _ : st) {
-    [[maybe_unused]] auto last = k_CountUnique(data, kN);
+    auto last = k_CountUnique(morton_code, kN);
+    bm::DoNotOptimize(last);
   }
 
-  delete[] data;
+  delete[] morton_code;
 }
 
 BENCHMARK(BM_StdUnique)->Unit(bm::kMillisecond);
@@ -42,12 +43,15 @@ BENCHMARK(BM_Unique)->Unit(bm::kMillisecond);
 static void BM_RadixTree(bm::State& st) {
   const auto n_threads = st.range(0);
 
-  auto data = LoadSortedMortonCodes();
+  auto morton_code = MakeSortedMortonFake(kN);
 
-  const auto last = std::unique(data, data + kN);
-  const auto n_unique = std::distance(data, last);
+  // const auto last = std::unique(morton_code, morton_code + kN);
+  // const auto n_unique = std::distance(morton_code, last);
 
-  const auto tree = std::make_unique<RadixTree>(data, n_unique, kMin, kMax);
+  const auto n_unique = static_cast<int>(0.98 * kN);
+
+  const auto tree =
+      std::make_unique<RadixTree>(morton_code, n_unique, kMin, kMax);
 
   omp_set_num_threads(n_threads);
 
@@ -55,7 +59,7 @@ static void BM_RadixTree(bm::State& st) {
     k_BuildRadixTree(tree.get());
   }
 
-  delete[] data;
+  delete[] morton_code;
 }
 
 BENCHMARK(BM_RadixTree)

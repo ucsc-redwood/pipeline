@@ -120,40 +120,6 @@ int main(const int argc, const char **argv) {
                   tree->d_tree.leftChild,
                   num_oct_nodes);
 
-  constexpr bool save_as_binary = false;
-  if (false) {
-    SaveToDataFile("data/bm_sorted_mortons_u32_10m", u_sort, n, save_as_binary);
-    SaveToDataFile("data/bm_prefix_n_u8_10m",
-                   tree->d_tree.prefixN,
-                   tree->n_nodes,
-                   save_as_binary);
-    SaveToDataFile("data/bm_parent_i32_10m",
-                   tree->d_tree.parent,
-                   tree->n_nodes,
-                   save_as_binary);
-    SaveToDataFile("data/bm_left_child_i32_10m",
-                   tree->d_tree.leftChild,
-                   tree->n_nodes,
-                   save_as_binary);
-    SaveToDataFile("data/bm_has_leaf_left_bool_10m",
-                   tree->d_tree.hasLeafLeft,
-                   tree->n_nodes,
-                   save_as_binary);
-    SaveToDataFile("data/bm_has_leaf_right_bool_10m",
-                   tree->d_tree.hasLeafRight,
-                   tree->n_nodes,
-                   save_as_binary);
-    SaveToDataFile("data/bm_edge_count_i32_10m",
-                   u_edge_count,
-                   tree->n_nodes,
-                   save_as_binary);
-    SaveToDataFile("data/bm_prefix_sum_i32_10m",
-                   u_count_prefix_sum,
-                   n_unique,
-                   save_as_binary);
-    // no need to save the oct, they will be computed at the very end
-  }
-
   delete[] u_input;
   delete[] u_sort;
   delete[] u_edge_count;
