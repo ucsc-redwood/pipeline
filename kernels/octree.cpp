@@ -88,6 +88,7 @@ void k_LinkLeafNodes(OctNode* nodes,
                      const int* rt_parents,
                      const int* rt_leftChild,
                      const int N) {
+#pragma omp parallel for schedule(static)
   for (auto i = 0; i < N; i++) {
     if (rt_hasLeafLeft[i]) {
       int leaf_idx = rt_leftChild[i];
