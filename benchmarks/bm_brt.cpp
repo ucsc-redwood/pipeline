@@ -3,13 +3,10 @@
 
 #include <algorithm>
 #include <glm/glm.hpp>
-#include <memory>
 
 #include "common.hpp"
 #include "config.hpp"
-#include "kernels/radix_tree.hpp"
-#include "kernels/unique.hpp"
-#include "types/brt.hpp"
+#include "kernels/all.hpp"
 
 namespace bm = benchmark;
 
@@ -45,18 +42,33 @@ static void BM_RadixTree(bm::State& st) {
 
   auto morton_code = MakeSortedMortonFake(kN);
 
-  // const auto last = std::unique(morton_code, morton_code + kN);
-  // const auto n_unique = std::distance(morton_code, last);
-
   const auto n_unique = static_cast<int>(0.98 * kN);
 
-  const auto tree =
-      std::make_unique<RadixTree>(morton_code, n_unique, kMin, kMax);
+  auto n_nodes = n_unique - 1;
+  auto prefixN = new uint8_t[n_nodes];
+  auto hasLeafLeft = new bool[n_nodes];
+  auto hasLeafRight = new bool[n_nodes];
+  auto leftChild = new int[n_nodes];
+  auto parent = new int[n_nodes];
+
+  k_BuildRadixTree(n_nodes,
+                   morton_code,
+                   prefixN,
+                   hasLeafLeft,
+                   hasLeafRight,
+                   leftChild,
+                   parent);
 
   omp_set_num_threads(n_threads);
 
   for (auto _ : st) {
-    k_BuildRadixTree(tree.get());
+    k_BuildRadixTree(n_nodes,
+                     morton_code,
+                     prefixN,
+                     hasLeafLeft,
+                     hasLeafRight,
+                     leftChild,
+                     parent);
   }
 
   delete[] morton_code;

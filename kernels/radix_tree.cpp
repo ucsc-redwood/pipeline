@@ -13,22 +13,6 @@
 #error "CLZ not supported on this platform"
 #endif
 
-void BrtNodes::allocate(const int n) {
-  hasLeafLeft = new bool[n];
-  hasLeafRight = new bool[n];
-  prefixN = new uint8_t[n];
-  leftChild = new int[n];
-  parent = new int[n];
-}
-
-void BrtNodes::deallocate() const {
-  delete[] hasLeafLeft;
-  delete[] hasLeafRight;
-  delete[] prefixN;
-  delete[] leftChild;
-  delete[] parent;
-}
-
 unsigned int ceil_div_u32(const unsigned int a, const unsigned int b) {
   assert(b != 0);
   return (a + b - 1) / b;

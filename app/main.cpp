@@ -33,6 +33,24 @@ void SaveToDataFile(const std::string &filename,
   out.close();
 }
 
+struct RadixTreeData {
+  // tmp
+  ~RadixTreeData() {
+    delete[] prefixN;
+    delete[] hasLeafLeft;
+    delete[] hasLeafRight;
+    delete[] leftChild;
+    delete[] parent;
+  }
+
+  int n_nodes;
+  uint8_t *prefixN;
+  bool *hasLeafLeft;
+  bool *hasLeafRight;
+  int *leftChild;
+  int *parent;
+};
+
 int main(const int argc, const char **argv) {
   int n = 10'000'000;
   int n_threads = 4;
@@ -71,16 +89,25 @@ int main(const int argc, const char **argv) {
   const auto n_unique = k_CountUnique(u_sort, n);
   spdlog::info("n_unique = {}", n_unique);
 
-  // const auto tree = std::make_unique<RadixTree>(u_sort, n_unique, min, max);
-  // k_BuildRadixTree(tree.get());
-  
-  
+  RadixTreeData tree;
+  tree.n_nodes = n_unique - 1;
+  tree.prefixN = new uint8_t[tree.n_nodes];
+  tree.hasLeafLeft = new bool[tree.n_nodes];
+  tree.hasLeafRight = new bool[tree.n_nodes];
+  tree.leftChild = new int[tree.n_nodes];
+  tree.parent = new int[tree.n_nodes];
 
+  k_BuildRadixTree(tree.n_nodes,
+                   u_sort,
+                   tree.prefixN,
+                   tree.hasLeafLeft,
+                   tree.hasLeafRight,
+                   tree.leftChild,
+                   tree.parent);
 
-  auto u_edge_count = new int[tree->n_nodes];
+  auto u_edge_count = new int[tree.n_nodes];
 
-  k_EdgeCount(
-      tree->d_tree.prefixN, tree->d_tree.parent, u_edge_count, n_unique);
+  k_EdgeCount(tree.prefixN, tree.parent, u_edge_count, n_unique);
 
   auto u_count_prefix_sum = new int[n_unique];
 
@@ -88,11 +115,11 @@ int main(const int argc, const char **argv) {
       k_PartialSum(u_edge_count, 0, n_unique, u_count_prefix_sum);
   u_count_prefix_sum[0] = 0;
 
-  const auto num_oct_nodes = u_count_prefix_sum[tree->n_nodes];
+  const auto num_oct_nodes = u_count_prefix_sum[tree.n_nodes];
   spdlog::info("num_oct_nodes = {}", num_oct_nodes);
 
   auto u_oct_nodes = new OctNode[num_oct_nodes];
-  const auto root_level = tree->d_tree.prefixN[0] / 3;
+  const auto root_level = tree.prefixN[0] / 3;
 
   const auto root_prefix = u_sort[0] >> (morton_bits - (3 * root_level));
 
@@ -106,8 +133,8 @@ int main(const int argc, const char **argv) {
                  u_count_prefix_sum,
                  u_edge_count,
                  u_sort,
-                 tree->d_tree.prefixN,
-                 tree->d_tree.parent,
+                 tree.prefixN,
+                 tree.parent,
                  min,
                  range,
                  num_oct_nodes);
@@ -116,11 +143,11 @@ int main(const int argc, const char **argv) {
                   u_count_prefix_sum,
                   u_edge_count,
                   u_sort,
-                  tree->d_tree.hasLeafLeft,
-                  tree->d_tree.hasLeafRight,
-                  tree->d_tree.prefixN,
-                  tree->d_tree.parent,
-                  tree->d_tree.leftChild,
+                  tree.hasLeafLeft,
+                  tree.hasLeafRight,
+                  tree.prefixN,
+                  tree.parent,
+                  tree.leftChild,
                   num_oct_nodes);
 
   delete[] u_input;
