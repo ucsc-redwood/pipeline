@@ -101,8 +101,8 @@ int main(const int argc, const char **argv) {
   spdlog::info("num_oct_nodes = {}", num_oct_nodes);
 
   auto u_oct_nodes = new OctNode[num_oct_nodes];
+  
   const auto root_level = tree.prefixN[0] / 3;
-
   const auto root_prefix = u_sort[0] >> (morton_bits - (3 * root_level));
 
   morton32_to_xyz(&u_oct_nodes[0].cornor,

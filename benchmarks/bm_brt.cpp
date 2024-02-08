@@ -5,7 +5,6 @@
 #include <glm/glm.hpp>
 
 #include "common.hpp"
-#include "config.hpp"
 #include "kernels/all.hpp"
 
 namespace bm = benchmark;
@@ -77,7 +76,7 @@ static void BM_EdgeCount(bm::State& st) {
   // prepare a radix tree
   unsigned int* morton_code = nullptr;
   RadixTreeData tree;
-  MakeRadixTreeFake(morton_code, tree);
+  MakeRadixTreeFake(&morton_code, tree);
 
   auto edge_count = new int[tree.n_nodes];
 
@@ -99,6 +98,7 @@ static void BM_PrefixSum(bm::State& st) {
 
   for (auto _ : st) {
     k_PartialSum(edge_count.data(), 0, kN, count_prefix_sum.data());
+    count_prefix_sum[0] = 0;
   }
 }
 
@@ -111,6 +111,7 @@ static void BM_PrefixSum_Std(bm::State& st) {
   for (auto _ : st) {
     std::partial_sum(
         edge_count.begin(), edge_count.end(), count_prefix_sum.begin());
+    count_prefix_sum[0] = 0;
   }
 }
 
