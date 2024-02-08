@@ -23,7 +23,7 @@ void SaveToDataFile(const std::string &filename,
     spdlog::error("Failed to open file");
     return;
   }
-  
+
   if (binary) {
     out.write(reinterpret_cast<const char *>(data), n * sizeof(T));
   } else {

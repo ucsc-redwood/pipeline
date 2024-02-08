@@ -1,8 +1,8 @@
+#include <cuda_runtime.h>
+
 #include <glm/glm.hpp>
 
 #include "types/morton.hpp"
-
-#include <cuda_runtime.h>
 
 namespace gpu {
 
@@ -44,12 +44,24 @@ __global__ void k_ComputeMorton(const glm::vec4* d_xyz,
     d_morton[i] = xyz_to_morton32(d_xyz[i], min_coord, range);
 }
 
+void Dispatch_ComputeMortonCode_With(const glm::vec4* data,
+                                     MortonT* morton_keys,
+                                     size_t n,
+                                     float min_coord,
+                                     float range,
+                                     // gpu thing
+                                     int logical_num_blocks) {
+  constexpr auto block_size = 768;
+  k_ComputeMorton<<<logical_num_blocks, block_size>>>(
+      data, morton_keys, n, min_coord, range);
+}
+
 }  // namespace gpu
 
-void k_ComputeMortonCode(const glm::vec4* data,
-                         unsigned int* morton_keys,
-                         const size_t n,
-                         const float min_coord,
-                         const float range) {
-  k_ComputeMorton<<<1, 1>>>(data, morton_keys, n, min_coord, range);
-}
+// void k_ComputeMortonCode(const glm::vec4* data,
+//                          unsigned int* morton_keys,
+//                          const size_t n,
+//                          const float min_coord,
+//                          const float range) {
+//   gpu::k_ComputeMorton<<<1, 1>>>(data, morton_keys, n, min_coord, range);
+// }

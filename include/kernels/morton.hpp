@@ -27,3 +27,15 @@ void k_ComputeMortonCode(const glm::vec4* data,
                          size_t n,
                          float min_coord,
                          float range);
+
+namespace gpu {
+
+void Dispatch_ComputeMortonCode_With(const glm::vec4* data,
+                                     MortonT* morton_keys,
+                                     size_t n,
+                                     float min_coord,
+                                     float range,
+                                     // gpu thing
+                                     int logical_num_blocks);
+
+}
