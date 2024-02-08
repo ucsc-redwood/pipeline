@@ -17,6 +17,7 @@ void k_MakeOctNodes(OctNode* oct_nodes,
   const auto root_level = rt_prefixN[0] / 3;
 
   // the root doesn't represent level 0 of the "entire" octree
+#pragma omp parallel for schedule(static)
   for (auto i = 1; i < N; ++i) {
     auto oct_idx = node_offsets[i];
     const auto n_new_nodes = rt_node_counts[i];
