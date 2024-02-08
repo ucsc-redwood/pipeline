@@ -91,6 +91,29 @@ static void BM_EdgeCount(bm::State& st) {
   delete[] morton_code;
 }
 
+static void BM_PrefixSum(bm::State& st) {
+  std::vector<int> edge_count(kN);
+  std::vector<int> count_prefix_sum(kN);
+
+  std::iota(edge_count.begin(), edge_count.end(), 0);
+
+  for (auto _ : st) {
+    k_PartialSum(edge_count.data(), 0, kN, count_prefix_sum.data());
+  }
+}
+
+static void BM_PrefixSum_Std(bm::State& st) {
+  std::vector<int> edge_count(kN);
+  std::vector<int> count_prefix_sum(kN);
+
+  std::iota(edge_count.begin(), edge_count.end(), 0);
+
+  for (auto _ : st) {
+    std::partial_sum(
+        edge_count.begin(), edge_count.end(), count_prefix_sum.begin());
+  }
+}
+
 BENCHMARK(BM_RadixTree)
     ->RangeMultiplier(2)
     ->Range(1, 48)
@@ -100,5 +123,9 @@ BENCHMARK(BM_EdgeCount)
     ->RangeMultiplier(2)
     ->Range(1, 48)
     ->Unit(bm::kMillisecond);
+
+BENCHMARK(BM_PrefixSum)->Unit(bm::kMillisecond);
+
+BENCHMARK(BM_PrefixSum_Std)->Unit(bm::kMillisecond);
 
 BENCHMARK_MAIN();
