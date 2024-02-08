@@ -17,7 +17,7 @@ void k_MakeOctNodes(OctNode* oct_nodes,
   const auto root_level = rt_prefixN[0] / 3;
 
   // the root doesn't represent level 0 of the "entire" octree
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
   for (auto i = 1; i < N; ++i) {
     auto oct_idx = node_offsets[i];
     const auto n_new_nodes = rt_node_counts[i];
@@ -88,7 +88,7 @@ void k_LinkLeafNodes(OctNode* nodes,
                      const int* rt_parents,
                      const int* rt_leftChild,
                      const int N) {
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
   for (auto i = 0; i < N; i++) {
     if (rt_hasLeafLeft[i]) {
       int leaf_idx = rt_leftChild[i];
@@ -119,28 +119,6 @@ void k_LinkLeafNodes(OctNode* nodes,
       // lowest index
       int bottom_oct_idx = node_offsets[rt_node];
       nodes[bottom_oct_idx].SetLeaf(which_child, leaf_idx);
-    }
-  }
-}
-
-void checkTree(const MortonT prefix,
-               int code_len,
-               const OctNode* nodes,
-               const int oct_idx,
-               const MortonT* codes) {
-  const OctNode& node = nodes[oct_idx];
-  for (int i = 0; i < 8; ++i) {
-    MortonT new_pref = (prefix << 3) | i;
-    if (node.child_node_mask & (1 << i)) {
-      checkTree(new_pref, code_len + 3, nodes, node.children[i], codes);
-    }
-    if (node.child_leaf_mask & (1 << i)) {
-      MortonT leaf_prefix =
-          codes[node.children[i]] >> (morton_bits - (code_len + 3));
-      if (new_pref != leaf_prefix) {
-        // spdlog::error("oh no...");
-        printf("oh no...\n");
-      }
     }
   }
 }

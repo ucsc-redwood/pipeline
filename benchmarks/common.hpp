@@ -26,6 +26,7 @@ struct BenchmarkData {
   OctNode* oct_nodes;
 };
 
+[[maybe_unused]]
 static unsigned int* MakeSortedMortonReal(const int n) {
   auto data = new glm::vec4[n];
   k_InitRandomVec4Determinastic(data, n, kMin, kRange, 114514);

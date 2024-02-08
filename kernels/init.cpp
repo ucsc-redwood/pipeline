@@ -12,7 +12,7 @@ int rand_r(unsigned int *seed) { return rand(); }
 #endif
 
 void k_InitDescending(unsigned int *sort, const int n) {
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
   for (auto i = 0; i < n; i++) {
     sort[i] = n - i;
   }
@@ -21,7 +21,7 @@ void k_InitDescending(unsigned int *sort, const int n) {
 void k_InitRandom(unsigned int *sort, const int n, const int seed) {
   srand(seed);
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
   for (auto i = 0; i < n; i++) {
     sort[i] = rand();
   }
@@ -50,7 +50,7 @@ void k_InitRandomVec4(glm::vec4 *u_data,
     auto tid = omp_get_thread_num();
     unsigned int my_seed = seed + tid;
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
     for (auto i = 0; i < n; i++) {
       u_data[i][0] = static_cast<float>(rand_r(&my_seed)) /
                          static_cast<float>(RAND_MAX) * range +

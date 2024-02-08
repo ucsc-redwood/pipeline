@@ -24,9 +24,3 @@ void k_LinkLeafNodes(OctNode* nodes,
                      const int* rt_parents,
                      const int* rt_leftChild,
                      int N);
-
-void checkTree(const MortonT prefix,
-               int code_len,
-               const OctNode* nodes,
-               const int oct_idx,
-               const MortonT* codes);

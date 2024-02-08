@@ -45,7 +45,7 @@ void k_BuildRadixTree(const int n /* n_pts */,
                       bool* has_leaf_right,
                       int* left_child,
                       int* parent) {
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
   for (int i = 0; i < n; i++) {
     const auto code_i = codes[i];
     // Determine direction of the range (+1 or -1)

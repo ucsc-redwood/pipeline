@@ -1,7 +1,5 @@
 #include "kernels/morton.hpp"
 
-// #include <omp.h>
-
 MortonT single_point_to_code_v2(
     float x, float y, float z, const float min_coord, const float range) {
   constexpr auto bit_scale = 1024.0f;
@@ -54,7 +52,7 @@ void k_ComputeMortonCode(const glm::vec4* data,
                          const size_t n,
                          const float min_coord,
                          const float range) {
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
   for (auto i = 0; i < n; i++) {
     morton_keys[i] = single_point_to_code_v2(
         data[i][0], data[i][1], data[i][2], min_coord, range);

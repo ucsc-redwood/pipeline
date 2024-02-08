@@ -7,7 +7,7 @@ void k_EdgeCount(const uint8_t* prefix_n,
   edge_count[0] = 0;
 
   // root has no parent, so don't do for index 0
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
   for (auto i = 1; i < n_brt_nodes; ++i) {
     const auto my_depth = prefix_n[i] / 3;
     const auto parent_depth = prefix_n[parents[i]] / 3;
