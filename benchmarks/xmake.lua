@@ -11,3 +11,15 @@ for _, file in ipairs(os.files("bm_*.cpp")) do
         add_packages("benchmark", "glm", "openmp")
         add_deps("kernels")
 end
+
+for _, file in ipairs(os.files("bm_*.cu")) do
+    local name = path.basename(file)
+    target(name)
+        set_kind("binary")
+        add_includedirs("../include")
+        add_headerfiles("../include/**/*.hpp")
+        add_files(file)
+        add_cugencodes("native")
+        add_packages("benchmark", "glm", "openmp")
+        add_deps("kernels", "gpu_kernels")
+end
