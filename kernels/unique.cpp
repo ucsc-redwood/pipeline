@@ -3,7 +3,7 @@ int k_CountUnique(unsigned int *keys, const int n) {
     return 0;
   }
 
-  int j = 0;
+  auto j = 0;
   for (auto i = 1; i < n; ++i) {
     if (keys[i] != keys[j]) {
       ++j;

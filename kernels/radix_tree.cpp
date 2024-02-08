@@ -1,5 +1,6 @@
 #include "kernels/radix_tree.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 
@@ -12,14 +13,30 @@
 #error "CLZ not supported on this platform"
 #endif
 
+void BrtNodes::allocate(const int n) {
+  hasLeafLeft = new bool[n];
+  hasLeafRight = new bool[n];
+  prefixN = new uint8_t[n];
+  leftChild = new int[n];
+  parent = new int[n];
+}
+
+void BrtNodes::deallocate() const {
+  delete[] hasLeafLeft;
+  delete[] hasLeafRight;
+  delete[] prefixN;
+  delete[] leftChild;
+  delete[] parent;
+}
+
 unsigned int ceil_div_u32(const unsigned int a, const unsigned int b) {
   assert(b != 0);
   return (a + b - 1) / b;
 }
 
 uint8_t delta_u32(const unsigned int a, const unsigned int b) {
-  constexpr unsigned int bit1_mask = static_cast<unsigned int>(1)
-                                     << (sizeof(a) * 8 - 1);
+  [[maybe_unused]] constexpr unsigned int bit1_mask =
+      static_cast<unsigned int>(1) << (sizeof(a) * 8 - 1);
   assert((a & bit1_mask) == 0);
   assert((b & bit1_mask) == 0);
   return CLZ(a ^ b) - 1;
@@ -72,7 +89,8 @@ void k_BuildRadixTree(const RadixTree* tree) {
       auto l_max = 2;
       // Cast to ptrdiff_t so in case the result is negative (since d is +/- 1),
       // we can catch it and not index out of bounds
-      while (i + static_cast<ptrdiff_t>(l_max) * d >= 0 && i + l_max * d <= n &&
+      while (i + static_cast<std::ptrdiff_t>(l_max) * d >= 0 &&
+             i + l_max * d <= n &&
              delta_u32(code_i, codes[i + l_max * d]) > delta_min) {
         l_max *= 2;
       }

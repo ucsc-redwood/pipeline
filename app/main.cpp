@@ -7,6 +7,16 @@
 #include "kernels/all.hpp"
 #include "kernels/octree.hpp"
 
+void SaveToDataFile(const unsigned int *u_sort, const int n) {
+  std::ofstream out("morton_code.bin", std::ios::binary);
+  if (!out.is_open()) {
+    spdlog::error("Failed to open file");
+    return;
+  }
+  out.write(reinterpret_cast<const char *>(u_sort), n * sizeof(unsigned int));
+  out.close();
+}
+
 int main(const int argc, const char **argv) {
   int n = 10'000'000;
   int n_threads = 4;
@@ -36,7 +46,7 @@ int main(const int argc, const char **argv) {
   auto u_sort = new unsigned int[n];
 
   constexpr auto seed = 114514;
-  k_InitRandomVec4(u_input, n, min, range, seed);
+  k_InitRandomVec4Determinastic(u_input, n, min, range, seed);
 
   // peek the first 10 elements
   for (auto i = 0; i < 10; i++) {
@@ -56,6 +66,8 @@ int main(const int argc, const char **argv) {
   for (auto i = 0; i < 10; i++) {
     spdlog::debug("u_sort[{}] = {}", i, u_sort[i]);
   }
+
+  // save the u_sort to a binary file, assume 32-bit unsigned int
 
   const auto n_unique = k_CountUnique(u_sort, n);
   spdlog::info("n_unique = {}", n_unique);
@@ -142,7 +154,6 @@ int main(const int argc, const char **argv) {
                   tree->d_tree.parent,
                   tree->d_tree.leftChild,
                   num_oct_nodes);
-
 
   delete[] u_input;
   delete[] u_sort;
