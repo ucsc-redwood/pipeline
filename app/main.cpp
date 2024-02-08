@@ -7,13 +7,29 @@
 #include "kernels/all.hpp"
 #include "kernels/octree.hpp"
 
-void SaveToDataFile(const unsigned int *u_sort, const int n) {
-  std::ofstream out("morton_code.bin", std::ios::binary);
+template <typename T>
+void SaveToDataFile(const std::string &filename,
+                    const T *data,
+                    const int n,
+                    bool binary = true) {
+  auto filename_str = std::string(filename + (binary ? ".bin" : ".txt"));
+
+  const auto bytes = n * sizeof(T);
+  spdlog::info(
+      "Saving {} mb to binary file: {}", bytes / (1024 * 1024), filename);
+
+  std::ofstream out(filename_str, binary ? std::ios::binary : std::ios::out);
   if (!out.is_open()) {
     spdlog::error("Failed to open file");
     return;
   }
-  out.write(reinterpret_cast<const char *>(u_sort), n * sizeof(unsigned int));
+  if (binary) {
+    out.write(reinterpret_cast<const char *>(data), n * sizeof(T));
+  } else {
+    for (auto i = 0; i < n; i++) {
+      out << data[i] << '\n';
+    }
+  }
   out.close();
 }
 
@@ -48,69 +64,28 @@ int main(const int argc, const char **argv) {
   constexpr auto seed = 114514;
   k_InitRandomVec4Determinastic(u_input, n, min, range, seed);
 
-  // peek the first 10 elements
-  for (auto i = 0; i < 10; i++) {
-    spdlog::debug("u_input[{}] = ({}, {}, {}, {})",
-                  i,
-                  u_input[i].x,
-                  u_input[i].y,
-                  u_input[i].z,
-                  u_input[i].w);
-  }
-
   k_ComputeMortonCode(u_input, u_sort, n, min, range);
 
   k_SortKeysInplace(u_sort, n);
 
-  // peek the first 10 elements
-  for (auto i = 0; i < 10; i++) {
-    spdlog::debug("u_sort[{}] = {}", i, u_sort[i]);
-  }
-
-  // save the u_sort to a binary file, assume 32-bit unsigned int
-
   const auto n_unique = k_CountUnique(u_sort, n);
   spdlog::info("n_unique = {}", n_unique);
-  spdlog::info("n - n_unique = {}", n - n_unique);
 
   const auto tree = std::make_unique<RadixTree>(u_sort, n_unique, min, max);
   k_BuildRadixTree(tree.get());
-
-  for (auto i = 0; i < 32; ++i) {
-    printf(
-        "idx = %d, code = %u, prefixN = %d, left = %d, parent = %d, "
-        "leftLeaf=%d, rightLeft=%d\n",
-        i,
-        u_sort[i],
-        tree->d_tree.prefixN[i],
-        tree->d_tree.leftChild[i],
-        tree->d_tree.parent[i],
-        tree->d_tree.hasLeafLeft[i],
-        tree->d_tree.hasLeafRight[i]);
-  }
 
   auto u_edge_count = new int[tree->n_nodes];
 
   k_EdgeCount(
       tree->d_tree.prefixN, tree->d_tree.parent, u_edge_count, n_unique);
 
-  // peek the first 10 elements
-  for (auto i = 0; i < 10; i++) {
-    spdlog::debug("u_edge_count[{}] = {}", i, u_edge_count[i]);
-  }
-
-  auto u_count_prefox_sum = new int[n_unique];
+  auto u_count_prefix_sum = new int[n_unique];
 
   [[maybe_unused]] auto _ =
-      k_PartialSum(u_edge_count, 0, n_unique, u_count_prefox_sum);
-  u_count_prefox_sum[0] = 0;
+      k_PartialSum(u_edge_count, 0, n_unique, u_count_prefix_sum);
+  u_count_prefix_sum[0] = 0;
 
-  // peek the first 10 elements
-  for (auto i = 0; i < 10; i++) {
-    spdlog::info("u_count_prefox_sum[{}] = {}", i, u_count_prefox_sum[i]);
-  }
-
-  const auto num_oct_nodes = u_count_prefox_sum[tree->n_nodes];
+  const auto num_oct_nodes = u_count_prefix_sum[tree->n_nodes];
   spdlog::info("num_oct_nodes = {}", num_oct_nodes);
 
   auto u_oct_nodes = new OctNode[num_oct_nodes];
@@ -125,7 +100,7 @@ int main(const int argc, const char **argv) {
   u_oct_nodes[0].cell_size = range;
 
   k_MakeOctNodes(u_oct_nodes,
-                 u_count_prefox_sum,
+                 u_count_prefix_sum,
                  u_edge_count,
                  u_sort,
                  tree->d_tree.prefixN,
@@ -133,19 +108,9 @@ int main(const int argc, const char **argv) {
                  min,
                  range,
                  num_oct_nodes);
-  // peek 32 octree nodes
-  for (auto i = 0; i < 32; ++i) {
-    printf("idx = %d, parent = %d, cell_size = %f, corner = (%f, %f, %f)\n",
-           i,
-           u_oct_nodes[i].child_node_mask,
-           u_oct_nodes[i].cell_size,
-           u_oct_nodes[i].cornor.x,
-           u_oct_nodes[i].cornor.y,
-           u_oct_nodes[i].cornor.z);
-  }
 
   k_LinkLeafNodes(u_oct_nodes,
-                  u_count_prefox_sum,
+                  u_count_prefix_sum,
                   u_edge_count,
                   u_sort,
                   tree->d_tree.hasLeafLeft,
@@ -155,10 +120,44 @@ int main(const int argc, const char **argv) {
                   tree->d_tree.leftChild,
                   num_oct_nodes);
 
+  constexpr bool save_as_binary = false;
+  if (false) {
+    SaveToDataFile("data/bm_sorted_mortons_u32_10m", u_sort, n, save_as_binary);
+    SaveToDataFile("data/bm_prefix_n_u8_10m",
+                   tree->d_tree.prefixN,
+                   tree->n_nodes,
+                   save_as_binary);
+    SaveToDataFile("data/bm_parent_i32_10m",
+                   tree->d_tree.parent,
+                   tree->n_nodes,
+                   save_as_binary);
+    SaveToDataFile("data/bm_left_child_i32_10m",
+                   tree->d_tree.leftChild,
+                   tree->n_nodes,
+                   save_as_binary);
+    SaveToDataFile("data/bm_has_leaf_left_bool_10m",
+                   tree->d_tree.hasLeafLeft,
+                   tree->n_nodes,
+                   save_as_binary);
+    SaveToDataFile("data/bm_has_leaf_right_bool_10m",
+                   tree->d_tree.hasLeafRight,
+                   tree->n_nodes,
+                   save_as_binary);
+    SaveToDataFile("data/bm_edge_count_i32_10m",
+                   u_edge_count,
+                   tree->n_nodes,
+                   save_as_binary);
+    SaveToDataFile("data/bm_prefix_sum_i32_10m",
+                   u_count_prefix_sum,
+                   n_unique,
+                   save_as_binary);
+    // no need to save the oct, they will be computed at the very end
+  }
+
   delete[] u_input;
   delete[] u_sort;
   delete[] u_edge_count;
-  delete[] u_count_prefox_sum;
+  delete[] u_count_prefix_sum;
   delete[] u_oct_nodes;
 
   return 0;

@@ -9,22 +9,6 @@ struct BrtNodes {
   void allocate(int n);
   void deallocate() const;
 
-  //   void allocate(const int n) {
-  //     hasLeafLeft = new bool[n];
-  //     hasLeafRight = new bool[n];
-  //     prefixN = new uint8_t[n];
-  //     leftChild = new int[n];
-  //     parent = new int[n];
-  //   }
-
-  //   void deallocate() const {
-  //     delete[] hasLeafLeft;
-  //     delete[] hasLeafRight;
-  //     delete[] prefixN;
-  //     delete[] leftChild;
-  //     delete[] parent;
-  //   }
-
   const unsigned int* morton_codes;
 
   // Flags determining whether the left and right children are leaves
