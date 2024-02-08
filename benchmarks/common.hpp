@@ -26,8 +26,7 @@ struct BenchmarkData {
   OctNode* oct_nodes;
 };
 
-[[maybe_unused]]
-static unsigned int* MakeSortedMortonReal(const int n) {
+[[maybe_unused]] static unsigned int* MakeSortedMortonReal(const int n) {
   auto data = new glm::vec4[n];
   k_InitRandomVec4Determinastic(data, n, kMin, kRange, 114514);
   auto morton_code = new unsigned int[n];
@@ -63,20 +62,6 @@ static void MakeRadixTreeFake(unsigned int** morton_code, RadixTreeData& tree) {
                    tree.leftChild,
                    tree.parent);
 }
-
-// static void MakeRadixTreeAndPrefixSumFake(unsigned int** morton_code,
-//                                           RadixTreeData& tree,
-//                                           int** edge_count,
-//                                           int** count_prefix_sum) {
-//   MakeRadixTreeFake(morton_code, tree);
-
-//   *edge_count = new int[tree.n_nodes];
-//   k_EdgeCount(tree.prefixN, tree.parent, *edge_count, tree.n_nodes);
-
-//   *count_prefix_sum = new int[tree.n_nodes + 1];
-//   k_PartialSum(*edge_count, 0, tree.n_nodes, *count_prefix_sum);
-//   *count_prefix_sum[0] = 0;
-// }
 
 [[nodiscard]] static BenchmarkData MakeRadixTreeAndPrefixSumFake() {
   BenchmarkData data;
