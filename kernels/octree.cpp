@@ -34,10 +34,10 @@ void k_MakeOctNodes(OctNode* oct_nodes,
 
       oct_nodes[parent].SetChild(which_child, oct_idx);
 
-      morton32_to_xyz(&oct_nodes[oct_idx].cornor,
-                      node_prefix << (morton_bits - (3 * level)),
-                      min_coord,
-                      range);
+      cpu::morton32_to_xyz(&oct_nodes[oct_idx].cornor,
+                           node_prefix << (morton_bits - (3 * level)),
+                           min_coord,
+                           range);
 
       // each cell is half the size of the level above it
       oct_nodes[oct_idx].cell_size = range / (float)(1 << (level - root_level));
@@ -68,10 +68,10 @@ void k_MakeOctNodes(OctNode* oct_nodes,
       // oct_nodes[oct_parent].SetChild(oct_idx, which_child);
       oct_nodes[oct_parent].SetChild(which_child, oct_idx);
 
-      morton32_to_xyz(&oct_nodes[oct_idx].cornor,
-                      top_node_prefix << (morton_bits - (3 * top_level)),
-                      min_coord,
-                      range);
+      cpu::morton32_to_xyz(&oct_nodes[oct_idx].cornor,
+                           top_node_prefix << (morton_bits - (3 * top_level)),
+                           min_coord,
+                           range);
       oct_nodes[oct_idx].cell_size =
           range / (float)(1 << (top_level - root_level));
     }

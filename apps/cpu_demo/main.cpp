@@ -105,10 +105,10 @@ int main(const int argc, const char **argv) {
   const auto root_level = tree.prefixN[0] / 3;
   const auto root_prefix = u_sort[0] >> (morton_bits - (3 * root_level));
 
-  morton32_to_xyz(&u_oct_nodes[0].cornor,
-                  root_prefix << (morton_bits - (3 * root_level)),
-                  min,
-                  range);
+  cpu::morton32_to_xyz(&u_oct_nodes[0].cornor,
+                       root_prefix << (morton_bits - (3 * root_level)),
+                       min,
+                       range);
   u_oct_nodes[0].cell_size = range;
 
   k_MakeOctNodes(u_oct_nodes,

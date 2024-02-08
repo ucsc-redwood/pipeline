@@ -15,7 +15,7 @@ static void BM_SinglePointToCode(bm::State& st) {
   auto z = 0.0f;
 
   for (auto _ : st) {
-    auto ret = single_point_to_code_v2(x, y, z, kMin, kRange);
+    auto ret = cpu::single_point_to_code_v2(x, y, z, kMin, kRange);
     bm::DoNotOptimize(ret);
   }
 }
@@ -46,7 +46,7 @@ static void BM_StdTransform(bm::State& st) {
                    data + kN,
                    morton_keys,
                    [&](const auto& v) {
-                     return single_point_to_code_v2(
+                     return cpu::single_point_to_code_v2(
                          v.x, v.y, v.z, kMin, kRange);
                    });
   }
