@@ -54,16 +54,13 @@ int log2_ceil_u32(const unsigned int x) {
 
 using MortonT = unsigned int;
 
-void k_BuildRadixTree(const RadixTree* tree) {
-  // alias
-  const auto n = tree->n_pts;
-  const auto codes = tree->d_tree.morton_codes;
-  const auto has_leaf_left = tree->d_tree.hasLeafLeft;
-  const auto has_leaf_right = tree->d_tree.hasLeafRight;
-  const auto prefix_n = tree->d_tree.prefixN;
-  const auto left_child = tree->d_tree.leftChild;
-  const auto parent = tree->d_tree.parent;
-
+void k_BuildRadixTree(const int n /* n_pts */,
+                      const unsigned int* codes,
+                      uint8_t* prefix_n,
+                      bool* has_leaf_left,
+                      bool* has_leaf_right,
+                      int* left_child,
+                      int* parent) {
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < n; i++) {
     const auto code_i = codes[i];

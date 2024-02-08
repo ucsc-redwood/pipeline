@@ -71,8 +71,11 @@ int main(const int argc, const char **argv) {
   const auto n_unique = k_CountUnique(u_sort, n);
   spdlog::info("n_unique = {}", n_unique);
 
-  const auto tree = std::make_unique<RadixTree>(u_sort, n_unique, min, max);
-  k_BuildRadixTree(tree.get());
+  // const auto tree = std::make_unique<RadixTree>(u_sort, n_unique, min, max);
+  // k_BuildRadixTree(tree.get());
+  
+  
+
 
   auto u_edge_count = new int[tree->n_nodes];
 
