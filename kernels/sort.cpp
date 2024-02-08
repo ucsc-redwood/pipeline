@@ -11,6 +11,8 @@ void k_SimpleRadixSort(unsigned int *keys, const int n) {
   omp_lsd_radix_sort(n, keys);
 }
 
-void k_SimpleRadixSort(unsigned int *keys, unsigned int* keys_alt, const int n) {
+void k_SimpleRadixSort(unsigned int *keys,
+                       unsigned int *keys_alt,
+                       const int n) {
   omp_lsd_radix_sort(n, keys, keys_alt);
 }

@@ -60,8 +60,9 @@ inline void omp_lsd_radix_sort(int n, unsigned int* data) {
   free(buffer);
 }
 
-
-inline void omp_lsd_radix_sort(int n, unsigned int* data, unsigned int* data_alt) {
+inline void omp_lsd_radix_sort(int n,
+                               unsigned int* data,
+                               unsigned int* data_alt) {
   // unsigned int* buffer = (unsigned int*)malloc(n * sizeof(unsigned int));
   int total_digits = sizeof(unsigned int) * 8;
 
