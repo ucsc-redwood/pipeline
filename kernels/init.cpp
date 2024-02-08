@@ -6,6 +6,11 @@
 #include <cstdlib>
 #include <random>
 
+// #if on windows, define rand_r()
+#if defined(_WIN32) || defined(_WIN64)
+int rand_r(unsigned int *seed) { return rand(); }
+#endif
+
 void k_InitDescending(unsigned int *sort, const int n) {
 #pragma omp parallel for schedule(static)
   for (auto i = 0; i < n; i++) {
