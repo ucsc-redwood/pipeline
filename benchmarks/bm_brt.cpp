@@ -51,14 +51,6 @@ static void BM_RadixTree(bm::State& st) {
   auto leftChild = new int[n_nodes];
   auto parent = new int[n_nodes];
 
-  k_BuildRadixTree(n_nodes,
-                   morton_code,
-                   prefixN,
-                   hasLeafLeft,
-                   hasLeafRight,
-                   leftChild,
-                   parent);
-
   omp_set_num_threads(n_threads);
 
   for (auto _ : st) {
@@ -71,10 +63,40 @@ static void BM_RadixTree(bm::State& st) {
                      parent);
   }
 
+  delete[] parent;
+  delete[] leftChild;
+  delete[] hasLeafRight;
+  delete[] hasLeafLeft;
+  delete[] prefixN;
+  delete[] morton_code;
+}
+
+static void BM_EdgeCount(bm::State& st) {
+  const auto n_threads = st.range(0);
+
+  // prepare a radix tree
+  unsigned int* morton_code = nullptr;
+  RadixTreeData tree;
+  MakeRadixTreeFake(morton_code, tree);
+
+  auto edge_count = new int[tree.n_nodes];
+
+  omp_set_num_threads(n_threads);
+
+  for (auto _ : st) {
+    k_EdgeCount(tree.prefixN, tree.parent, edge_count, tree.n_nodes);
+  }
+
+  delete[] edge_count;
   delete[] morton_code;
 }
 
 BENCHMARK(BM_RadixTree)
+    ->RangeMultiplier(2)
+    ->Range(1, 48)
+    ->Unit(bm::kMillisecond);
+
+BENCHMARK(BM_EdgeCount)
     ->RangeMultiplier(2)
     ->Range(1, 48)
     ->Unit(bm::kMillisecond);

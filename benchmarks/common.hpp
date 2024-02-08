@@ -2,12 +2,12 @@
 #pragma once
 
 #include <algorithm>
-// #include <memory>
 #include <numeric>
 
 #include "config.hpp"
 #include "glm/glm.hpp"
 #include "kernels/all.hpp"
+#include "types/brt.hpp"
 
 static unsigned int* MakeSortedMortonReal(const int n) {
   auto data = new glm::vec4[n];
@@ -25,47 +25,23 @@ static unsigned int* MakeSortedMortonReal(const int n) {
   return morton_keys;
 }
 
-// Wrapper for easy to create morton codes
-static void MakeRadixTree(unsigned int* morton_keys) {
+static void MakeRadixTreeFake(unsigned int* morton_keys, RadixTreeData& tree) {
   morton_keys = MakeSortedMortonFake(kN);
-  
-  // auto tree = std::make_unique<RadixTree>(morton_keys, kN, kMin, kMax);
-  // k_BuildRadixTree(tree.get());
 
+  const auto n_unique = static_cast<int>(0.98 * kN);
 
+  tree.n_nodes = n_unique - 1;
+  tree.prefixN = new uint8_t[tree.n_nodes];
+  tree.hasLeafLeft = new bool[tree.n_nodes];
+  tree.hasLeafRight = new bool[tree.n_nodes];
+  tree.leftChild = new int[tree.n_nodes];
+  tree.parent = new int[tree.n_nodes];
 
+  k_BuildRadixTree(tree.n_nodes,
+                   morton_keys,
+                   tree.prefixN,
+                   tree.hasLeafLeft,
+                   tree.hasLeafRight,
+                   tree.leftChild,
+                   tree.parent);
 }
-
-// static unsigned int* MakeSortedMortonFake(const int n) {
-//   auto morton_keys = new unsigned int[n];
-
-// #pragma omp parallel for
-//   for (auto i = 0; i < n; i++) {
-//     morton_keys[i] = i;
-//   }
-
-//   return morton_keys;
-// }
-
-// #include <cassert>
-// #include <memory>
-
-// #include "config.hpp"
-// #include "data_loader.hpp"
-// #include "kernels/all.hpp"
-// //#include "types/brt.hpp"
-
-// [[nodiscard]] static std::unique_ptr<RadixTree> CreateRadixTree() {
-//   auto data = LoadSortedMortonCodes();
-
-//   const auto last = std::unique(data, data + kN);
-//   const auto n_unique = std::distance(data, last);
-
-//   // return std::make_unique<RadixTree>(data, n_unique, kMin, kMax);
-
-//   auto tree = std::make_unique<RadixTree>(data, n_unique, kMin, kMax);
-//   k_BuildRadixTree(tree.get());
-
-//   delete[] data;
-//   return tree;
-// }

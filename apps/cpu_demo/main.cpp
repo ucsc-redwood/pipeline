@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 
 #include "kernels/all.hpp"
-#include "kernels/octree.hpp"
+#include "types/brt.hpp"
 
 template <typename T>
 void SaveToDataFile(const std::string &filename,
@@ -32,24 +32,6 @@ void SaveToDataFile(const std::string &filename,
   }
   out.close();
 }
-
-struct RadixTreeData {
-  // tmp
-  ~RadixTreeData() {
-    delete[] prefixN;
-    delete[] hasLeafLeft;
-    delete[] hasLeafRight;
-    delete[] leftChild;
-    delete[] parent;
-  }
-
-  int n_nodes;
-  uint8_t *prefixN;
-  bool *hasLeafLeft;
-  bool *hasLeafRight;
-  int *leftChild;
-  int *parent;
-};
 
 int main(const int argc, const char **argv) {
   int n = 10'000'000;
