@@ -46,11 +46,6 @@ int main(const int argc, const char** argv) {
   }
 
   const auto num_unique = n;
-
-  // const auto block_size = DetermineBlockSize(gpu::k_BuildRadixTree_Kernel,
-  // n); spdlog::info("block_size = {}", block_size);
-  // const auto block_size = 256;
-
   RadixTreeData radix_data;
   radix_data.n_nodes = num_unique - 1;
 
@@ -71,8 +66,6 @@ int main(const int argc, const char** argv) {
                                     radix_data.parent,
                                     my_num_blocks);
   checkCudaErrors(cudaDeviceSynchronize());
-
-  // peek at the first 10 brt nodes
 
   for (auto i = 0; i < 10; ++i) {
     printf("\n");
