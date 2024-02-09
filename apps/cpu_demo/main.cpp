@@ -7,33 +7,6 @@
 #include "kernels/all.hpp"
 #include "types/brt.hpp"
 
-template <typename T>
-void SaveToDataFile(const std::string &filename,
-                    const T *data,
-                    const int n,
-                    bool binary = true) {
-  auto filename_str = std::string(filename + (binary ? ".bin" : ".txt"));
-
-  const auto bytes = n * sizeof(T);
-  spdlog::info(
-      "Saving {} mb to binary file: {}", bytes / (1024 * 1024), filename);
-
-  std::ofstream out(filename_str, binary ? std::ios::binary : std::ios::out);
-  if (!out.is_open()) {
-    spdlog::error("Failed to open file");
-    return;
-  }
-
-  if (binary) {
-    out.write(reinterpret_cast<const char *>(data), n * sizeof(T));
-  } else {
-    for (auto i = 0; i < n; i++) {
-      out << data[i] << '\n';
-    }
-  }
-  out.close();
-}
-
 int main(const int argc, const char **argv) {
   int n = 10'000'000;
   int n_threads = 4;
@@ -60,10 +33,10 @@ int main(const int argc, const char **argv) {
   constexpr auto range = max - min;
 
   const auto u_input = new glm::vec4[n];
-  auto u_sort = new unsigned int[n];
+  const auto u_sort = new unsigned int[n];
 
   constexpr auto seed = 114514;
-  k_InitRandomVec4Determinastic(u_input, n, min, range, seed);
+  k_InitRandomVec4(u_input, n, min, range, seed);
 
   k_ComputeMortonCode(u_input, u_sort, n, min, range);
 
@@ -88,11 +61,11 @@ int main(const int argc, const char **argv) {
                    tree.leftChild,
                    tree.parent);
 
-  auto u_edge_count = new int[tree.n_nodes];
+  const auto u_edge_count = new int[tree.n_nodes];
 
   k_EdgeCount(tree.prefixN, tree.parent, u_edge_count, n_unique);
 
-  auto u_count_prefix_sum = new int[n_unique];
+  const auto u_count_prefix_sum = new int[n_unique];
 
   [[maybe_unused]] auto _ =
       k_PartialSum(u_edge_count, 0, n_unique, u_count_prefix_sum);
@@ -101,12 +74,12 @@ int main(const int argc, const char **argv) {
   const auto num_oct_nodes = u_count_prefix_sum[tree.n_nodes];
   spdlog::info("num_oct_nodes = {}", num_oct_nodes);
 
-  auto u_oct_nodes = new OctNode[num_oct_nodes];
+  const auto u_oct_nodes = new OctNode[num_oct_nodes];
 
   const auto root_level = tree.prefixN[0] / 3;
   const auto root_prefix = u_sort[0] >> (morton_bits - (3 * root_level));
 
-  cpu::morton32_to_xyz(&u_oct_nodes[0].cornor,
+  cpu::morton32_to_xyz(&u_oct_nodes[0].corner,
                        root_prefix << (morton_bits - (3 * root_level)),
                        min,
                        range);

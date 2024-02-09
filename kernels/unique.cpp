@@ -1,3 +1,4 @@
+// No need to parallelize this function, as it is not a bottleneck
 int k_CountUnique(unsigned int *keys, const int n) {
   if (n == 0) {
     return 0;

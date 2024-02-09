@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-void k_BuildRadixTree(const int n /* n_pts */,
+void k_BuildRadixTree(int n /* n_pts */,
                       const unsigned int* codes,
                       uint8_t* prefix_n,
                       bool* has_leaf_left,

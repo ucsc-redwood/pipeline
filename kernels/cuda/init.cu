@@ -1,3 +1,6 @@
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
+
 #include <glm/glm.hpp>
 
 #include "cuda/common/helper_cuda.hpp"
@@ -14,7 +17,7 @@ namespace gpu {
 #define HYBRID_TAUS (z1 ^ z2 ^ z3 ^ z4)
 
 __host__ __device__ __forceinline__ float uintToFloat(unsigned int x) {
-  return (x & 0xFFFFFF) / 16777216.0f;
+  return static_cast<float>(x & 0xFFFFFF) / 16777216.0f;
 }
 
 __host__ __device__ __forceinline__ float uintToFloatScaled(unsigned int x) {
@@ -45,14 +48,14 @@ __global__ void k_InitRandomVec4_Kernel(glm::vec4 *random_vectors,
 }
 
 void k_InitRandomVec4(
-    glm::vec4 *u_data, int n, float min, float range, int seed) {
+    glm::vec4 *u_data, const int n, float min, float range, const int seed) {
   // I tested this using the API and it was the fastest
   constexpr auto block_size = 768;
   const auto grid_size = (n + block_size - 1) / block_size;
   k_InitRandomVec4_Kernel<<<grid_size, block_size>>>(u_data, n, seed);
 }
 
-__global__ void k_InitAscending_Kernel(unsigned int *sort, int n) {
+__global__ void k_InitAscending_Kernel(unsigned int *sort, const int n) {
   const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
 
   for (auto i = idx; i < n; i += blockDim.x * gridDim.x) {
@@ -60,8 +63,8 @@ __global__ void k_InitAscending_Kernel(unsigned int *sort, int n) {
   }
 }
 
-void k_InitAscendingSync(unsigned int *sort, int n) {
-  constexpr auto block_size = 768;
+void k_InitAscendingSync(unsigned int *sort, const int n) {
+  constexpr auto block_size = 768;  // optimal
   const auto grid_size = (n + block_size - 1) / block_size;
   k_InitAscending_Kernel<<<grid_size, block_size>>>(sort, n);
   checkCudaErrors(cudaDeviceSynchronize());

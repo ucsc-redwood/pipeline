@@ -1,4 +1,5 @@
 #include <cuda_runtime.h>
+#include <device_launch_parameters.h>
 
 #include <glm/glm.hpp>
 
@@ -8,7 +9,7 @@ namespace gpu {
 
 __device__ __forceinline__ unsigned int morton3D_SplitBy3bits(
     const unsigned int a) {
-  unsigned int x = ((unsigned int)a) & 0x000003ff;
+  unsigned int x = static_cast<unsigned int>(a) & 0x000003ff;
   x = (x | x << 16) & 0x30000ff;
   x = (x | x << 8) & 0x0300f00f;
   x = (x | x << 4) & 0x30c30c3;
@@ -32,38 +33,17 @@ __device__ __forceinline__ unsigned int m3D_e_magicbits(const unsigned int x,
   return m3D_e_magicbits(i, j, k);
 }
 
-__global__ void k_ComputeMorton(const glm::vec4* d_xyz,
-                                unsigned int* d_morton,
-                                const int n,
-                                const float min_coord,
-                                const float range) {
+__global__ void k_ComputeMorton_Kernel(const glm::vec4* d_xyz,
+                                       unsigned int* morton_keys,
+                                       const int n,
+                                       const float min_coord,
+                                       const float range) {
   const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
   const auto stride = blockDim.x * gridDim.x;
 
-  for (auto i = idx; i < n; i += stride)
-    d_morton[i] = xyz_to_morton32(d_xyz[i], min_coord, range);
-}
-
-// assume n = 1024
-// k_ComputeMorton<<<4, 256>>>(u_data);
-//   Do task...
-//
-// k_ComputeMorton<<<1, 256>>>(u_data);
-// for(i = 0; i < 4; ++i) {
-//  Do task...
-// }
-//
-
-void Dispatch_ComputeMortonCode_With(const glm::vec4* data,
-                                     MortonT* morton_keys,
-                                     size_t n,
-                                     float min_coord,
-                                     float range,
-                                     // gpu thing
-                                     int logical_num_blocks) {
-  constexpr auto block_size = 768;
-  k_ComputeMorton<<<logical_num_blocks, block_size>>>(
-      data, morton_keys, n, min_coord, range);
+  for (auto i = idx; i < n; i += stride) {
+    morton_keys[i] = xyz_to_morton32(d_xyz[i], min_coord, range);
+  }
 }
 
 }  // namespace gpu

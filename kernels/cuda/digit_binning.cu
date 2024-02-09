@@ -1,5 +1,7 @@
 #include <cooperative_groups.h>
 #include <cooperative_groups/details/partitioning.h>
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
 
 #include "cuda/common.cuh"
 #include "cuda/constants.hpp"
@@ -216,8 +218,8 @@ constexpr auto FLAG_MASK = 3;
 #define BIN_PART_START \
   (partitionIndex * BIN_PART_SIZE)  // Starting offset of a partition tile
 
-__global__ void k_DigitBinning_Original(unsigned int* globalHistogram,
-                                        unsigned int* sort,
+__global__ void k_DigitBinning_Original(const unsigned int* globalHistogram,
+                                        const unsigned int* sort,
                                         unsigned int* alt,
                                         volatile unsigned int* passHistogram,
                                         unsigned int* index,

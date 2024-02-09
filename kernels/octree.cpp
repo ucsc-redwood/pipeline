@@ -8,9 +8,9 @@ void k_MakeOctNodes(OctNode* oct_nodes,
                     const MortonT* codes,
                     const uint8_t* rt_prefixN,
                     const int* rt_parents,
-                    float min_coord,
-                    float range,
-                    int N  // number of brt nodes
+                    const float min_coord,
+                    const float range,
+                    const int N  // number of brt nodes
 ) {
   const auto root_level = rt_prefixN[0] / 3;
 
@@ -28,17 +28,16 @@ void k_MakeOctNodes(OctNode* oct_nodes,
       const auto which_child = node_prefix & 0b111;
       const auto parent = oct_idx + 1;
 
-      // oct_nodes[parent].children[which_child] = oct_idx;
-
       oct_nodes[parent].SetChild(which_child, oct_idx);
 
-      cpu::morton32_to_xyz(&oct_nodes[oct_idx].cornor,
+      cpu::morton32_to_xyz(&oct_nodes[oct_idx].corner,
                            node_prefix << (morton_bits - (3 * level)),
                            min_coord,
                            range);
 
       // each cell is half the size of the level above it
-      oct_nodes[oct_idx].cell_size = range / (float)(1 << (level - root_level));
+      oct_nodes[oct_idx].cell_size =
+          range / static_cast<float>(1 << (level - root_level));
       oct_idx = parent;
     }
 
@@ -62,16 +61,14 @@ void k_MakeOctNodes(OctNode* oct_nodes,
 
       const auto which_child = top_node_prefix & 0b111;
 
-      // oct_nodes[oct_parent].children[which_child] = oct_idx;
-      // oct_nodes[oct_parent].SetChild(oct_idx, which_child);
       oct_nodes[oct_parent].SetChild(which_child, oct_idx);
 
-      cpu::morton32_to_xyz(&oct_nodes[oct_idx].cornor,
+      cpu::morton32_to_xyz(&oct_nodes[oct_idx].corner,
                            top_node_prefix << (morton_bits - (3 * top_level)),
                            min_coord,
                            range);
       oct_nodes[oct_idx].cell_size =
-          range / (float)(1 << (top_level - root_level));
+          range / static_cast<float>(1 << (top_level - root_level));
     }
   }
 }

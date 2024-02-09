@@ -3,7 +3,6 @@
 #include <glm/glm.hpp>
 
 #include "config.hpp"
-#include "cuda/common.cuh"
 #include "cuda/kernels/edge_count.cuh"
 #include "cuda/kernels/radix_tree.cuh"
 #include "cuda_bench_helper.cuh"
@@ -17,10 +16,10 @@ static void BM_BuildRadixTree(bm::State& st) {
   const auto block_size =
       DetermineBlockSizeAndDisplay(gpu::k_BuildRadixTree_Kernel, st);
 
-  auto d_sort = AllocateDevice<unsigned int>(kN);
+  const auto d_sort = AllocateDevice<unsigned int>(kN);
   gpu::k_InitAscendingSync(d_sort, kN);
 
-  const auto num_unique = kN;
+  constexpr auto num_unique = kN;
   RadixTreeData d_tree;
   d_tree.n_nodes = num_unique - 1;
   // clang-format off
@@ -55,10 +54,10 @@ static void BM_EdgeCount(bm::State& st) {
   const auto block_size =
       DetermineBlockSizeAndDisplay(gpu::k_EdgeCount_Kernel, st);
 
-  auto d_sort = AllocateDevice<unsigned int>(kN);
+  const auto d_sort = AllocateDevice<unsigned int>(kN);
   gpu::k_InitAscendingSync(d_sort, kN);
 
-  const auto num_unique = kN;
+  constexpr auto num_unique = kN;
   RadixTreeData d_tree;
   d_tree.n_nodes = num_unique - 1;
   // clang-format off

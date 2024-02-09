@@ -1,7 +1,7 @@
 #include "kernels/edge_count.hpp"
 
 void k_EdgeCount(const uint8_t* prefix_n,
-                 int* parents,
+                 const int* parents,
                  int* edge_count,
                  const int n_brt_nodes) {
   edge_count[0] = 0;

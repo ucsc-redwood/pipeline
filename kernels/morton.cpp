@@ -9,7 +9,9 @@ namespace cpu {
 // we can use 21 chunk of 3-bits, so 63. 1 bit is wasted.
 // enum { MORTON_BITS = 30 };
 
-static MortonT morton3D_SplitBy3bits(const CoordT a) {
+namespace {
+
+MortonT morton3D_SplitBy3bits(const CoordT a) {
   MortonT x = static_cast<MortonT>(a) & 0x000003ff;
   x = (x | x << 16) & 0x30000ff;
   x = (x | x << 8) & 0x0300f00f;
@@ -18,12 +20,12 @@ static MortonT morton3D_SplitBy3bits(const CoordT a) {
   return x;
 }
 
-static MortonT m3D_e_magicbits(const CoordT x, const CoordT y, const CoordT z) {
+MortonT m3D_e_magicbits(const CoordT x, const CoordT y, const CoordT z) {
   return morton3D_SplitBy3bits(x) | (morton3D_SplitBy3bits(y) << 1) |
          (morton3D_SplitBy3bits(z) << 2);
 }
 
-static CoordT morton3D_GetThirdBits(const MortonT m) {
+CoordT morton3D_GetThirdBits(const MortonT m) {
   MortonT x = m & 0x9249249;
   x = (x ^ (x >> 2)) & 0x30c30c3;
   x = (x ^ (x >> 4)) & 0x0300f00f;
@@ -32,11 +34,12 @@ static CoordT morton3D_GetThirdBits(const MortonT m) {
   return x;
 }
 
-static void m3D_d_magicbits(const MortonT m, CoordT* xyz) {
+void m3D_d_magicbits(const MortonT m, CoordT* xyz) {
   xyz[0] = morton3D_GetThirdBits(m);
   xyz[1] = morton3D_GetThirdBits(m >> 1);
   xyz[2] = morton3D_GetThirdBits(m >> 2);
 }
+}  // namespace
 
 MortonT single_point_to_code_v2(
     float x, float y, float z, const float min_coord, const float range) {
@@ -67,8 +70,6 @@ void morton32_to_xyz(glm::vec4* ret,
   const auto dec_z =
       (static_cast<float>(dec_raw_x[2]) / bit_scale) * range + min_coord;
 
-  // vec4 result = {dec_x, dec_y, dec_z, 1.0f};
-  // glm_vec4_copy(result, *ret);
   (*ret)[0] = dec_x;
   (*ret)[1] = dec_y;
   (*ret)[2] = dec_z;

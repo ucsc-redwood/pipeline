@@ -1,11 +1,9 @@
 
 #pragma once
 
-#include <algorithm>
 #include <numeric>
 
 #include "config.hpp"
-#include "glm/glm.hpp"
 #include "kernels/all.hpp"
 #include "types/brt.hpp"
 
@@ -34,7 +32,7 @@ struct BenchmarkData {
 
 [[maybe_unused]] static unsigned int* MakeSortedMortonReal(const int n) {
   auto data = new glm::vec4[n];
-  k_InitRandomVec4Determinastic(data, n, kMin, kRange, 114514);
+  k_InitRandomVec4(data, n, kMin, kRange, 114514);
   auto morton_code = new unsigned int[n];
   k_ComputeMortonCode(data, morton_code, n, kMin, kRange);
   k_SortKeysInplace(morton_code, n);
@@ -69,7 +67,7 @@ static void MakeRadixTreeFake(unsigned int** morton_code, RadixTreeData& tree) {
                    tree.parent);
 }
 
-[[nodiscard]] static BenchmarkData MakeRadixTreeAndPrefixSumFake() {
+[[nodiscard, maybe_unused]] static BenchmarkData MakeRadixTreeAndPrefixSumFake() {
   BenchmarkData data;
 
   data.morton_code = MakeSortedMortonFake(kN);

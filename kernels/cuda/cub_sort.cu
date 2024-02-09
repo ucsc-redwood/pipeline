@@ -4,7 +4,10 @@
 #include <cuda/common/helper_cuda.hpp>
 
 namespace gpu {
-void k_CubRadixSort(unsigned int *keys, unsigned int *keys_alt, int n) {
+
+void k_CubRadixSort(const unsigned int *keys,
+                    unsigned int *keys_alt,
+                    const int n) {
   size_t temp_storage_bytes = 0;
   void *d_temp_storage = nullptr;
 
@@ -18,4 +21,5 @@ void k_CubRadixSort(unsigned int *keys, unsigned int *keys_alt, int n) {
 
   checkCudaErrors(cudaFree(d_temp_storage));
 }
+
 }  // namespace gpu

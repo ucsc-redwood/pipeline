@@ -14,7 +14,7 @@ static void BM_MakeOctNodes(bm::State& st) {
   constexpr auto max = 1024.0f;
   constexpr auto range = max - min;
 
-  auto u_sort = MakeSortedMortonFake(n);
+  const auto u_sort = MakeSortedMortonFake(n);
 
   const auto n_unique = k_CountUnique(u_sort, n);
 
@@ -51,7 +51,7 @@ static void BM_MakeOctNodes(bm::State& st) {
   const auto root_level = tree.prefixN[0] / 3;
   const auto root_prefix = u_sort[0] >> (morton_bits - (3 * root_level));
 
-  cpu::morton32_to_xyz(&u_oct_nodes[0].cornor,
+  cpu::morton32_to_xyz(&u_oct_nodes[0].corner,
                        root_prefix << (morton_bits - (3 * root_level)),
                        min,
                        range);
@@ -90,17 +90,7 @@ static void BM_LinkOctreeNodes(bm::State& st) {
   constexpr auto max = 1024.0f;
   constexpr auto range = max - min;
 
-  //   const auto u_input = new glm::vec4[n];
-  //   auto u_sort = new unsigned int[n];
-
-  //   constexpr auto seed = 114514;
-  //   k_InitRandomVec4Determinastic(u_input, n, min, range, seed);
-
-  //   k_ComputeMortonCode(u_input, u_sort, n, min, range);
-
-  //   k_SortKeysInplace(u_sort, n);
-
-  auto u_sort = MakeSortedMortonFake(n);
+  const auto u_sort = MakeSortedMortonFake(n);
 
   const auto n_unique = k_CountUnique(u_sort, n);
 
@@ -137,7 +127,7 @@ static void BM_LinkOctreeNodes(bm::State& st) {
   const auto root_level = tree.prefixN[0] / 3;
   const auto root_prefix = u_sort[0] >> (morton_bits - (3 * root_level));
 
-  cpu::morton32_to_xyz(&u_oct_nodes[0].cornor,
+  cpu::morton32_to_xyz(&u_oct_nodes[0].corner,
                        root_prefix << (morton_bits - (3 * root_level)),
                        min,
                        range);

@@ -1,6 +1,6 @@
 #include "kernels/partial_sum.hpp"
 
-int* k_PartialSum(int* data,
+int* k_PartialSum(const int* data,
                   std::ptrdiff_t first,
                   const std::ptrdiff_t last,
                   int* d_first) {

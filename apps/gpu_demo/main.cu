@@ -12,6 +12,7 @@
 #include "cuda/constants.hpp"
 #include "cuda/digit_binning.cuh"
 #include "cuda/histogram.cuh"
+#include "cuda/kernels/morton.cuh"
 
 constexpr auto kRadix = 256;  // fixed for 32-bit unsigned int
 // constexpr auto kRadixPasses = 4;
@@ -34,6 +35,7 @@ const dim3 kDigitBinDim(kLaneCount, kDigitBinWarps, 1);
   return size / partition_size;
 }
 
+namespace {
 void CheckHistogramCorrectness(const unsigned int* u_sort,
                                const unsigned int* u_global_histogram,
                                const int n) {
@@ -46,13 +48,14 @@ void CheckHistogramCorrectness(const unsigned int* u_sort,
       u_sort, u_global_histogram_ground_truth, n);
   checkCudaErrors(cudaDeviceSynchronize());
 
-  auto is_equal = std::equal(u_global_histogram,
-                             u_global_histogram + kRadix * kRadixPasses,
-                             u_global_histogram_ground_truth);
+  const auto is_equal = std::equal(u_global_histogram,
+                                   u_global_histogram + kRadix * kRadixPasses,
+                                   u_global_histogram_ground_truth);
   std::cout << "**** is_equal = " << std::boolalpha << is_equal << '\n';
 
   checkCudaErrors(cudaFree(u_global_histogram_ground_truth));
 }
+}  // namespace
 
 int main(const int argc, const char** argv) {
   int n = 10'000'000;
@@ -94,8 +97,7 @@ int main(const int argc, const char** argv) {
   unsigned int* u_sort;
   checkCudaErrors(cudaMallocManaged(&u_sort, n * sizeof(unsigned int)));
 
-  gpu::Dispatch_ComputeMortonCode_With(
-      u_input, u_sort, n, min, range, my_num_blocks);
+  gpu::k_ComputeMorton_Kernel<<<16, 768>>>(u_input, u_sort, n, min, range);
   checkCudaErrors(cudaDeviceSynchronize());
 
   unsigned int* u_sort_alt;
@@ -185,7 +187,7 @@ int main(const int argc, const char** argv) {
     std::cout << u_sort[i] << '\n';
   }
 
-  auto is_sorted = std::is_sorted(u_sort, u_sort + n);
+  const auto is_sorted = std::is_sorted(u_sort, u_sort + n);
   std::cout << "is_sorted = " << std::boolalpha << is_sorted << '\n';
 
   checkCudaErrors(cudaEventDestroy(start));
@@ -196,7 +198,7 @@ int main(const int argc, const char** argv) {
   checkCudaErrors(cudaFree(u_sort_alt));
   checkCudaErrors(cudaFree(u_global_histogram));
   checkCudaErrors(cudaFree(u_index));
-  for (auto& pass_histogram : u_pass_histogram) {
+  for (const auto& pass_histogram : u_pass_histogram) {
     checkCudaErrors(cudaFree(pass_histogram));
   }
   return 0;
