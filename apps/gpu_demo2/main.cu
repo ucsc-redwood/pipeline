@@ -7,6 +7,7 @@
 
 #include "cuda/common.cuh"
 #include "cuda/common/helper_cuda.hpp"
+#include "cuda/kernels/radix_tree.cuh"
 #include "kernels/all.hpp"
 #include "types/brt.hpp"
 
@@ -46,9 +47,9 @@ int main(const int argc, const char** argv) {
   }
 
   const auto num_unique = n;
+
   RadixTreeData radix_data;
   radix_data.n_nodes = num_unique - 1;
-
   // clang-format off
   checkCudaErrors(cudaMallocManaged(&radix_data.prefixN, num_unique * sizeof(uint8_t)));
   checkCudaErrors(cudaMallocManaged(&radix_data.hasLeafLeft, num_unique * sizeof(bool)));
@@ -57,14 +58,17 @@ int main(const int argc, const char** argv) {
   checkCudaErrors(cudaMallocManaged(&radix_data.parent, num_unique * sizeof(int)));
   // clang-format on
 
-  gpu::Dispatch_BuildRadixTree_With(num_unique,
-                                    u_sort,
-                                    radix_data.prefixN,
-                                    radix_data.hasLeafLeft,
-                                    radix_data.hasLeafRight,
-                                    radix_data.leftChild,
-                                    radix_data.parent,
-                                    my_num_blocks);
+  const auto block_size = DetermineBlockSize(gpu::k_BuildRadixTree_Kernel);
+  spdlog::info("block_size = {}", block_size);
+
+  gpu::k_BuildRadixTree_Kernel<<<my_num_blocks, block_size>>>(
+      num_unique,
+      u_sort,
+      radix_data.prefixN,
+      radix_data.hasLeafLeft,
+      radix_data.hasLeafRight,
+      radix_data.leftChild,
+      radix_data.parent);
   checkCudaErrors(cudaDeviceSynchronize());
 
   for (auto i = 0; i < 10; ++i) {
@@ -75,6 +79,63 @@ int main(const int argc, const char** argv) {
     printf("leftChild[%d] = %d\n", i, radix_data.leftChild[i]);
     printf("parent[%d] = %d\n", i, radix_data.parent[i]);
   }
+
+  // ------ Verify the result --------------------------------------------------
+
+  RadixTreeData radix_data_host;
+  radix_data_host.n_nodes = radix_data.n_nodes;
+  radix_data_host.prefixN = new uint8_t[num_unique];
+  radix_data_host.hasLeafLeft = new bool[num_unique];
+  radix_data_host.hasLeafRight = new bool[num_unique];
+  radix_data_host.leftChild = new int[num_unique];
+  radix_data_host.parent = new int[num_unique];
+
+  k_BuildRadixTree(radix_data_host.n_nodes,
+                   u_sort,
+                   radix_data_host.prefixN,
+                   radix_data_host.hasLeafLeft,
+                   radix_data_host.hasLeafRight,
+                   radix_data_host.leftChild,
+                   radix_data_host.parent);
+
+  for (auto i = 0; i < radix_data_host.n_nodes; ++i) {
+    if (radix_data.prefixN[i] != radix_data_host.prefixN[i]) {
+      spdlog::error("prefixN[{}] = {} != {}",
+                    i,
+                    radix_data.prefixN[i],
+                    radix_data_host.prefixN[i]);
+    }
+    if (radix_data.hasLeafLeft[i] != radix_data_host.hasLeafLeft[i]) {
+      spdlog::error("hasLeafLeft[{}] = {} != {}",
+                    i,
+                    radix_data.hasLeafLeft[i],
+                    radix_data_host.hasLeafLeft[i]);
+    }
+    if (radix_data.hasLeafRight[i] != radix_data_host.hasLeafRight[i]) {
+      spdlog::error("hasLeafRight[{}] = {} != {}",
+                    i,
+                    radix_data.hasLeafRight[i],
+                    radix_data_host.hasLeafRight[i]);
+    }
+    if (radix_data.leftChild[i] != radix_data_host.leftChild[i]) {
+      spdlog::error("leftChild[{}] = {} != {}",
+                    i,
+                    radix_data.leftChild[i],
+                    radix_data_host.leftChild[i]);
+    }
+    if (radix_data.parent[i] != radix_data_host.parent[i]) {
+      spdlog::error("parent[{}] = {} != {}",
+                    i,
+                    radix_data.parent[i],
+                    radix_data_host.parent[i]);
+    }
+  }
+
+  free(radix_data_host.prefixN);
+  free(radix_data_host.hasLeafLeft);
+  free(radix_data_host.hasLeafRight);
+  free(radix_data_host.leftChild);
+  free(radix_data_host.parent);
 
   // ---------------------------------------------------------------------------
 

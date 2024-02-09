@@ -1,7 +1,6 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
-#include "cuda/brt.cuh"
 #include "cuda/common/helper_cuda.hpp"
 
 namespace gpu {
@@ -143,7 +142,7 @@ void Dispatch_BuildRadixTree_With(const int n /* n_pts */,
                                   int* parent,
                                   // gpu thing
                                   int logical_num_blocks) {
-  constexpr auto block_size = 256;
+  constexpr auto block_size = 768;
   k_BuildRadixTree_Kernel<<<logical_num_blocks, block_size>>>(
       n, codes, prefix_n, has_leaf_left, has_leaf_right, left_child, parent);
 }
