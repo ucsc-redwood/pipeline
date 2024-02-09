@@ -47,13 +47,12 @@ __global__ void k_ComputeMorton(const glm::vec4* d_xyz,
 // assume n = 1024
 // k_ComputeMorton<<<4, 256>>>(u_data);
 //   Do task...
-// 
+//
 // k_ComputeMorton<<<1, 256>>>(u_data);
 // for(i = 0; i < 4; ++i) {
 //  Do task...
 // }
-//  
-
+//
 
 void Dispatch_ComputeMortonCode_With(const glm::vec4* data,
                                      MortonT* morton_keys,

@@ -1,7 +1,5 @@
 #include "kernels/octree.hpp"
 
-#include <cstdio>
-
 #include "kernels/morton.hpp"
 
 void k_MakeOctNodes(OctNode* oct_nodes,
