@@ -5,7 +5,8 @@
 #include "config.hpp"
 #include "cuda/kernels/morton.cuh"
 #include "cuda_bench_helper.cuh"
-#include "kernels/init.hpp"
+// #include "kernels/init.hpp"
+#include "cuda/kernels/init.cuh"
 
 namespace bm = benchmark;
 

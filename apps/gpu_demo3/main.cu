@@ -7,6 +7,7 @@
 
 #include "cuda/common.cuh"
 #include "cuda/common/helper_cuda.hpp"
+#include "cuda/kernels/init.cuh"
 #include "cuda/kernels/radix_tree.cuh"
 #include "kernels/all.hpp"
 #include "types/brt.hpp"

@@ -39,6 +39,7 @@ void m3D_d_magicbits(const MortonT m, CoordT* xyz) {
   xyz[1] = morton3D_GetThirdBits(m >> 1);
   xyz[2] = morton3D_GetThirdBits(m >> 2);
 }
+
 }  // namespace
 
 MortonT single_point_to_code_v2(

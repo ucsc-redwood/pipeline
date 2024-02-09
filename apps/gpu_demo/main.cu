@@ -12,6 +12,7 @@
 #include "cuda/constants.hpp"
 #include "cuda/digit_binning.cuh"
 #include "cuda/histogram.cuh"
+#include "cuda/kernels/init.cuh"
 #include "cuda/kernels/morton.cuh"
 
 constexpr auto kRadix = 256;  // fixed for 32-bit unsigned int
