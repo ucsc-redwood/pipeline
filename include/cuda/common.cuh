@@ -2,6 +2,20 @@
 
 #include "constants.hpp"
 
+#include <stdexcept>
+
+template <class T>
+[[nodiscard]] static int DetermineBlockSize(T func) {
+  int blockSize = 1;
+  int minGridSize = 1;
+  const auto status =
+      cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, func);
+  if (cudaSuccess != status) {
+    throw std::runtime_error("CUDA error detected.");
+  }
+  return blockSize;
+}
+
 __device__ __forceinline__ void InclusiveWarpScan(volatile unsigned int* t,
                                                   int index,
                                                   int strideLog) {

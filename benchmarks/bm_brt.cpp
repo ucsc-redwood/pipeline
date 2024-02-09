@@ -88,6 +88,12 @@ static void BM_EdgeCount(bm::State& st) {
 
   delete[] edge_count;
   delete[] morton_code;
+
+  delete[] tree.prefixN;
+  delete[] tree.hasLeafLeft;
+  delete[] tree.hasLeafRight;
+  delete[] tree.leftChild;
+  delete[] tree.parent;
 }
 
 static void BM_PrefixSum(bm::State& st) {

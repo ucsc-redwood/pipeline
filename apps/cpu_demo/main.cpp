@@ -135,6 +135,11 @@ int main(const int argc, const char **argv) {
 
   delete[] u_input;
   delete[] u_sort;
+  delete[] tree.prefixN;
+  delete[] tree.hasLeafLeft;
+  delete[] tree.hasLeafRight;
+  delete[] tree.leftChild;
+  delete[] tree.parent;
   delete[] u_edge_count;
   delete[] u_count_prefix_sum;
   delete[] u_oct_nodes;

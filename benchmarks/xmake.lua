@@ -13,7 +13,7 @@ for _, file in ipairs(os.files("bm_*.cpp")) do
 end
 
 for _, file in ipairs(os.files("bm_*.cu")) do
-    local name = path.basename(file)
+    local name = path.basename(file) .. "_gpu"
     target(name)
         set_kind("binary")
         add_includedirs("../include")

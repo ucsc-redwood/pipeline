@@ -1,7 +1,6 @@
 #include <glm/glm.hpp>
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
+#include "cuda/common/helper_cuda.hpp"
 
 namespace gpu {
 
@@ -51,6 +50,21 @@ void k_InitRandomVec4(
   constexpr auto block_size = 768;
   const auto grid_size = (n + block_size - 1) / block_size;
   k_InitRandomVec4_Kernel<<<grid_size, block_size>>>(u_data, n, seed);
+}
+
+__global__ void k_InitAscending_Kernel(unsigned int *sort, int n) {
+  const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
+
+  for (auto i = idx; i < n; i += blockDim.x * gridDim.x) {
+    sort[i] = i;
+  }
+}
+
+void k_InitAscendingSync(unsigned int *sort, int n) {
+  constexpr auto block_size = 768;
+  const auto grid_size = (n + block_size - 1) / block_size;
+  k_InitAscending_Kernel<<<grid_size, block_size>>>(sort, n);
+  checkCudaErrors(cudaDeviceSynchronize());
 }
 
 }  // namespace gpu

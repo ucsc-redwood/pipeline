@@ -84,13 +84,12 @@ static void BM_MakeOctNodes(bm::State& st) {
   delete[] u_oct_nodes;
   delete[] u_count_prefix_sum;
   delete[] u_edge_count;
-  //   delete[] tree.parent;
-  //   delete[] tree.leftChild;
-  //   delete[] tree.hasLeafRight;
-  //   delete[] tree.hasLeafLeft;
-  //   delete[] tree.prefixN;
+  delete[] tree.prefixN;
+  delete[] tree.hasLeafLeft;
+  delete[] tree.hasLeafRight;
+  delete[] tree.leftChild;
+  delete[] tree.parent;
   delete[] u_sort;
-  //   delete[] u_input;
 }
 
 static void BM_LinkOctreeNodes(bm::State& st) {
@@ -182,13 +181,12 @@ static void BM_LinkOctreeNodes(bm::State& st) {
   delete[] u_oct_nodes;
   delete[] u_count_prefix_sum;
   delete[] u_edge_count;
-  //   delete[] tree.parent;
-  //   delete[] tree.leftChild;
-  //   delete[] tree.hasLeafRight;
-  //   delete[] tree.hasLeafLeft;
-  //   delete[] tree.prefixN;
+  delete[] tree.prefixN;
+  delete[] tree.hasLeafLeft;
+  delete[] tree.hasLeafRight;
+  delete[] tree.leftChild;
+  delete[] tree.parent;
   delete[] u_sort;
-  //   delete[] u_input;
 }
 
 BENCHMARK(BM_MakeOctNodes)

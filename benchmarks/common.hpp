@@ -15,6 +15,12 @@ struct BenchmarkData {
     delete[] edge_count;
     delete[] count_prefix_sum;
     delete[] oct_nodes;
+
+    delete[] tree.prefixN;
+    delete[] tree.hasLeafLeft;
+    delete[] tree.hasLeafRight;
+    delete[] tree.leftChild;
+    delete[] tree.parent;
   }
 
   unsigned int* morton_code;
