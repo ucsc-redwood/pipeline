@@ -7,29 +7,6 @@
 #include "kernels/all.hpp"
 #include "types/brt.hpp"
 
-struct BenchmarkData {
-  ~BenchmarkData() {
-    delete[] morton_code;
-    delete[] edge_count;
-    delete[] count_prefix_sum;
-    delete[] oct_nodes;
-
-    delete[] tree.prefixN;
-    delete[] tree.hasLeafLeft;
-    delete[] tree.hasLeafRight;
-    delete[] tree.leftChild;
-    delete[] tree.parent;
-  }
-
-  unsigned int* morton_code;
-
-  RadixTreeData tree;
-
-  int* edge_count;
-  int* count_prefix_sum;
-  OctNode* oct_nodes;
-};
-
 [[maybe_unused]] static unsigned int* MakeSortedMortonReal(const int n) {
   auto data = new glm::vec4[n];
   k_InitRandomVec4(data, n, kMin, kRange, 114514);
@@ -65,28 +42,4 @@ static void MakeRadixTreeFake(unsigned int** morton_code, RadixTreeData& tree) {
                    tree.hasLeafRight,
                    tree.leftChild,
                    tree.parent);
-}
-
-[[nodiscard, maybe_unused]] static BenchmarkData MakeRadixTreeAndPrefixSumFake() {
-  BenchmarkData data;
-
-  data.morton_code = MakeSortedMortonFake(kN);
-  MakeRadixTreeFake(&data.morton_code, data.tree);
-
-  data.tree.n_nodes = kN - 1;
-  data.tree.prefixN = new uint8_t[data.tree.n_nodes];
-  data.tree.hasLeafLeft = new bool[data.tree.n_nodes];
-  data.tree.hasLeafRight = new bool[data.tree.n_nodes];
-  data.tree.leftChild = new int[data.tree.n_nodes];
-  data.tree.parent = new int[data.tree.n_nodes];
-
-  data.edge_count = new int[data.tree.n_nodes];
-  k_EdgeCount(
-      data.tree.prefixN, data.tree.parent, data.edge_count, data.tree.n_nodes);
-
-  data.count_prefix_sum = new int[data.tree.n_nodes + 1];
-  k_PartialSum(data.edge_count, 0, data.tree.n_nodes, data.count_prefix_sum);
-  data.count_prefix_sum[0] = 0;
-
-  return data;
 }
