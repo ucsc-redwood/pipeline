@@ -43,7 +43,7 @@ namespace gpu {
 
 static std::pair<unsigned int *, RadixTreeData> MakeRadixTree_Fake() {
   unsigned int *u_sort;
-  cudaMallocHost(&u_sort, kN * sizeof(unsigned int));
+  cudaMallocManaged(&u_sort, kN * sizeof(unsigned int));
 
   gpu::k_InitAscendingSync(u_sort, kN);
 
