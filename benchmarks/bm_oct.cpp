@@ -14,16 +14,6 @@ static void BM_MakeOctNodes(bm::State& st) {
   constexpr auto max = 1024.0f;
   constexpr auto range = max - min;
 
-  //   const auto u_input = new glm::vec4[n];
-  //   auto u_sort = new unsigned int[n];
-
-  //   constexpr auto seed = 114514;
-  //   k_InitRandomVec4Determinastic(u_input, n, min, range, seed);
-
-  //   k_ComputeMortonCode(u_input, u_sort, n, min, range);
-
-  //   k_SortKeysInplace(u_sort, n);
-
   auto u_sort = MakeSortedMortonFake(n);
 
   const auto n_unique = k_CountUnique(u_sort, n);
