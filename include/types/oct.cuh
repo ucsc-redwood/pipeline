@@ -11,14 +11,14 @@ struct OctNode {
   int child_node_mask;
   int child_leaf_mask;
 
-  __device__ __forceinline__
-  void SetChild(const unsigned int which_child, const int oct_idx) {
+  __host__ __device__ __forceinline__ void SetChild(
+      const unsigned int which_child, const int oct_idx) {
     children[which_child] = oct_idx;
     child_node_mask |= 1 << which_child;
   }
 
-  __device__ __forceinline__
-  void SetLeaf(const unsigned int which_child, const int leaf_idx) {
+  __host__ __device__ __forceinline__ void SetLeaf(
+      const unsigned int which_child, const int leaf_idx) {
     children[which_child] = leaf_idx;
     child_leaf_mask &= ~(1 << which_child);
   }
