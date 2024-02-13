@@ -1,45 +1,41 @@
-
 #pragma once
 
-#include <numeric>
+#include <benchmark/benchmark.h>
+#include <omp.h>
+
+#include <glm/glm.hpp>
+
+namespace bm = benchmark;
 
 #include "config.hpp"
 #include "kernels/all.hpp"
-#include "types/brt.hpp"
 
-[[maybe_unused]] static unsigned int* MakeSortedMortonReal(const int n) {
-  auto data = new glm::vec4[n];
-  k_InitRandomVec4(data, n, kMin, kRange, 114514);
-  auto morton_code = new unsigned int[n];
-  k_ComputeMortonCode(data, morton_code, n, kMin, kRange);
-  k_SortKeysInplace(morton_code, n);
-  delete[] data;
-  return morton_code;
+template <typename T>
+[[nodiscard]] T* AllocateHost(const size_t n_items) {
+  return static_cast<T*>(malloc(n_items * sizeof(T)));
 }
 
-[[nodiscard]] static unsigned int* MakeSortedMortonFake(const int n) {
-  auto morton_code = new unsigned int[n];
-  std::iota(morton_code, morton_code + n, 1);
-  return morton_code;
-}
+inline void Free(void* ptr) { free(ptr); }
 
-static void MakeRadixTreeFake(unsigned int** morton_code, RadixTreeData& tree) {
-  *morton_code = MakeSortedMortonFake(kN);
+class MyFixture : public bm::Fixture {
+ public:
+  MyFixture() {
+    u_input = AllocateHost<glm::vec4>(kN);
+    u_input_out = AllocateHost<unsigned int>(kN);
+    u_morton = AllocateHost<unsigned int>(kN);
+  }
 
-  const auto n_unique = static_cast<int>(0.98 * kN);
+  ~MyFixture() {
+    Free(u_input);
+    Free(u_input_out);
+    Free(u_morton);
+  }
 
-  tree.n_nodes = n_unique - 1;
-  tree.prefixN = new uint8_t[tree.n_nodes];
-  tree.hasLeafLeft = new bool[tree.n_nodes];
-  tree.hasLeafRight = new bool[tree.n_nodes];
-  tree.leftChild = new int[tree.n_nodes];
-  tree.parent = new int[tree.n_nodes];
+  //   void SetUp(const bm::State& state) override {}
 
-  k_BuildRadixTree(tree.n_nodes,
-                   *morton_code,
-                   tree.prefixN,
-                   tree.hasLeafLeft,
-                   tree.hasLeafRight,
-                   tree.leftChild,
-                   tree.parent);
-}
+  //   void TearDown(const bm::State& state) override {}
+
+  glm::vec4* u_input;
+  unsigned int* u_input_out;
+  unsigned int* u_morton;
+};
