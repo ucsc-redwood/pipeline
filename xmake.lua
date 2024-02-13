@@ -21,3 +21,4 @@ includes("kernels")
 includes("benchmarks")
 
 includes("apps")
+includes("tests")

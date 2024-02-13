@@ -1,4 +1,4 @@
-#include "kernels/init.hpp"
+#include "kernels/00_init.hpp"
 
 #include <algorithm>
 #include <random>
@@ -7,6 +7,13 @@ void k_InitDescending(unsigned int* sort, const int n) {
 #pragma omp parallel for
   for (auto i = 0; i < n; i++) {
     sort[i] = n - i;
+  }
+}
+
+void k_InitAscending(unsigned int* sort, const int n) {
+#pragma omp parallel for
+  for (auto i = 0; i < n; i++) {
+    sort[i] = i;
   }
 }
 
