@@ -2,6 +2,20 @@
 
 #include "kernels/impl/morton.hpp"
 
+void SetChild(OctNode* node,
+              const unsigned int which_child,
+              const int oct_idx) {
+  node->children[which_child] = oct_idx;
+  node->child_node_mask |= 1 << which_child;
+}
+
+void SetLeaf(OctNode* node,
+             const unsigned int which_child,
+             const int leaf_idx) {
+  node->children[which_child] = leaf_idx;
+  node->child_leaf_mask &= ~(1 << which_child);
+}
+
 void k_MakeOctNodes(OctNode* oct_nodes,
                     const int* node_offsets,    // prefix sum
                     const int* rt_node_counts,  // edge count
@@ -28,7 +42,7 @@ void k_MakeOctNodes(OctNode* oct_nodes,
       const auto which_child = node_prefix & 0b111;
       const auto parent = oct_idx + 1;
 
-      oct_nodes[parent].SetChild(which_child, oct_idx);
+      SetChild(&oct_nodes[parent], which_child, oct_idx);
 
       cpu::morton32_to_xyz(&oct_nodes[oct_idx].corner,
                            node_prefix << (morton_bits - (3 * level)),
@@ -61,7 +75,7 @@ void k_MakeOctNodes(OctNode* oct_nodes,
 
       const auto which_child = top_node_prefix & 0b111;
 
-      oct_nodes[oct_parent].SetChild(which_child, oct_idx);
+      SetChild(&oct_nodes[oct_parent], which_child, oct_idx);
 
       cpu::morton32_to_xyz(&oct_nodes[oct_idx].corner,
                            top_node_prefix << (morton_bits - (3 * top_level)),
@@ -100,7 +114,7 @@ void k_LinkLeafNodes(OctNode* nodes,
       // the lowest octnode in the string contributed by rt_node will be the
       // lowest index
       int bottom_oct_idx = node_offsets[rt_node];
-      nodes[bottom_oct_idx].SetLeaf(which_child, leaf_idx);
+      SetLeaf(&nodes[bottom_oct_idx], which_child, leaf_idx);
     }
     if (rt_hasLeafRight[i]) {
       int leaf_idx = rt_leftChild[i] + 1;
@@ -115,7 +129,7 @@ void k_LinkLeafNodes(OctNode* nodes,
       // the lowest octnode in the string contributed by rt_node will be the
       // lowest index
       int bottom_oct_idx = node_offsets[rt_node];
-      nodes[bottom_oct_idx].SetLeaf(which_child, leaf_idx);
+      SetLeaf(&nodes[bottom_oct_idx], which_child, leaf_idx);
     }
   }
 }
