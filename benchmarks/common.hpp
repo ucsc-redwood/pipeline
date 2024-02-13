@@ -6,11 +6,13 @@
 #include <glm/glm.hpp>
 
 #include "types/brt.hpp"
+#include "types/oct.hpp"
 
 namespace bm = benchmark;
 
 #include "config.hpp"
 #include "kernels/all.hpp"
+#include "kernels/impl/morton.hpp"
 
 template <typename T>
 [[nodiscard]] T* AllocateHost(const size_t n_items) {
@@ -61,10 +63,38 @@ class MyFixture : public bm::Fixture {
         k_PartialSum(u_edge_count, 0, n_unique, u_count_prefix_sum);
     u_count_prefix_sum[0] = 0;
 
-    n_oct_nodes = u_count_prefix_sum[tree.n_nodes];
+    num_oct_nodes = u_count_prefix_sum[tree.n_nodes];
+    u_oct_nodes = AllocateHost<OctNode>(num_oct_nodes);
 
-    // (Verified already)
-    // printf("==============================n_oct_nodes = %d\n", n_oct_nodes);
+    const auto root_level = tree.prefixN[0] / 3;
+    const auto root_prefix = u_morton[0] >> (morton_bits - (3 * root_level));
+
+    cpu::morton32_to_xyz(&u_oct_nodes[0].corner,
+                         root_prefix << (morton_bits - (3 * root_level)),
+                         kMin,
+                         kRange);
+    u_oct_nodes[0].cell_size = kRange;
+
+    k_MakeOctNodes(u_oct_nodes,
+                   u_count_prefix_sum,
+                   u_edge_count,
+                   u_morton,
+                   tree.prefixN,
+                   tree.parent,
+                   kMin,
+                   kRange,
+                   num_oct_nodes);
+
+    k_LinkLeafNodes(u_oct_nodes,
+                    u_count_prefix_sum,
+                    u_edge_count,
+                    u_morton,
+                    tree.hasLeafLeft,
+                    tree.hasLeafRight,
+                    tree.prefixN,
+                    tree.parent,
+                    tree.leftChild,
+                    num_oct_nodes);
 
     // ----------------- used by output -----------------
     u_morton_out = AllocateHost<unsigned int>(kN);
@@ -76,6 +106,7 @@ class MyFixture : public bm::Fixture {
     tree_out.parent = AllocateHost<int>(tree.n_nodes);
     u_edge_count_out = AllocateHost<int>(tree.n_nodes);
     u_count_prefix_sum_out = AllocateHost<int>(n_unique);
+    u_oct_nodes_out = AllocateHost<OctNode>(num_oct_nodes);
   }
 
   ~MyFixture() {
@@ -88,6 +119,7 @@ class MyFixture : public bm::Fixture {
     Free(tree.parent);
     Free(u_edge_count);
     Free(u_count_prefix_sum);
+    Free(u_oct_nodes);
 
     Free(u_morton_out);
     Free(tree_out.prefixN);
@@ -97,10 +129,11 @@ class MyFixture : public bm::Fixture {
     Free(tree_out.parent);
     Free(u_edge_count_out);
     Free(u_count_prefix_sum_out);
+    Free(u_oct_nodes_out);
   }
 
   int n_unique;
-  int n_oct_nodes;
+  int num_oct_nodes;
 
   // These should be treated as read-only
   glm::vec4* u_input;
@@ -108,10 +141,12 @@ class MyFixture : public bm::Fixture {
   RadixTreeData tree;
   int* u_edge_count;
   int* u_count_prefix_sum;
+  OctNode* u_oct_nodes;
 
   // You may use these as output
   unsigned int* u_morton_out;
   RadixTreeData tree_out;
   int* u_edge_count_out;
   int* u_count_prefix_sum_out;
+  OctNode* u_oct_nodes_out;
 };
