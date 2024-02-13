@@ -7,6 +7,6 @@ BENCHMARK_DEFINE_F(MyFixture, BM_Morton32)(bm::State& st) {
   omp_set_num_threads(num_threads);
 
   for (auto _ : st) {
-    k_ComputeMortonCode(u_input, u_input_out, kN, kMin, kRange);
+    k_ComputeMortonCode(u_input, u_morton_out, kN, kMin, kRange);
   }
 }

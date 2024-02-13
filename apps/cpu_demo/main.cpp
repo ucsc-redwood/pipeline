@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <glm/glm.hpp>
 
+#include "kernels/02_sort.hpp"
 #include "kernels/all.hpp"
 #include "kernels/impl/morton.hpp"
 #include "types/brt.hpp"
@@ -72,7 +73,8 @@ int main(const int argc, const char** argv) {
 
   k_ComputeMortonCode(u_input, u_sort, n, min, range);
 
-  k_SortKeysInplace(u_sort, n);
+  // k_SortKeysInplace(u_sort, n);
+  k_SimpleRadixSort(u_sort, n);
 
   if (!std::is_sorted(u_sort, u_sort + n)) {
     spdlog::error("u_sort is not sorted");
