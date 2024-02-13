@@ -2,8 +2,10 @@ for _, file in ipairs(os.files("test_*.cpp")) do
     local name = path.basename(file)
     target(name)
     set_kind("binary")
+    add_includedirs("../include")
     add_files(name .. ".cpp")
-    -- add_deps("kernels")
+    add_deps("kernels")
+    add_packages("openmp")
     add_tests("pass_output", {
         trim_output = true,
         runargs = "10 9 8 7 6 5 4 3 2 1",

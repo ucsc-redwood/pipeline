@@ -1,6 +1,10 @@
 
+#include <omp.h>
+
 #include <algorithm>
 #include <iostream>
+
+#include "kernels/impl/simple_radix_sort.hpp"
 
 int main(const int argc, const char** argv) {
   int n = argc - 1;
@@ -9,7 +13,8 @@ int main(const int argc, const char** argv) {
     data[i] = atoi(argv[i + 1]);
   }
 
-  std::sort(data, data + n);
+  omp_set_num_threads(4);
+  cpu::omp_lsd_radix_sort(n, data);
 
   for (int i = 0; i < n; i++) std::cout << data[i] << " ";
 
