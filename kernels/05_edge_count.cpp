@@ -1,4 +1,4 @@
-#include "kernels/edge_count.hpp"
+#include "kernels/05_edge_count.hpp"
 
 void k_EdgeCount(const uint8_t* prefix_n,
                  const int* parents,

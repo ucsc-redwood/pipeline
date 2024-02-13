@@ -1,7 +1,5 @@
 for _, file in ipairs(os.files("test_*.cpp")) do
     local name = path.basename(file)
-    -- print
-    print("add test: %s", name)
     target(name)
     set_kind("binary")
     add_files(name .. ".cpp")

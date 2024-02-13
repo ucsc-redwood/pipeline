@@ -1,11 +1,11 @@
-#include "kernels/octree.hpp"
+#include "kernels/07_octree.hpp"
 
-#include "kernels/morton.hpp"
+#include "kernels/impl/morton.hpp"
 
 void k_MakeOctNodes(OctNode* oct_nodes,
                     const int* node_offsets,    // prefix sum
                     const int* rt_node_counts,  // edge count
-                    const MortonT* codes,
+                    const unsigned int* codes,
                     const uint8_t* rt_prefixN,
                     const int* rt_parents,
                     const float min_coord,
@@ -76,7 +76,7 @@ void k_MakeOctNodes(OctNode* oct_nodes,
 void k_LinkLeafNodes(OctNode* nodes,
                      const int* node_offsets,
                      const int* rt_node_counts,
-                     const MortonT* codes,
+                     const unsigned int* codes,
                      const bool* rt_hasLeafLeft,
                      const bool* rt_hasLeafRight,
                      const uint8_t* rt_prefixN,
@@ -88,7 +88,8 @@ void k_LinkLeafNodes(OctNode* nodes,
     if (rt_hasLeafLeft[i]) {
       int leaf_idx = rt_leftChild[i];
       int leaf_level = rt_prefixN[i] / 3 + 1;
-      MortonT leaf_prefix = codes[leaf_idx] >> (morton_bits - (3 * leaf_level));
+      unsigned int leaf_prefix =
+          codes[leaf_idx] >> (morton_bits - (3 * leaf_level));
       int which_child = leaf_prefix & 0b111;
       // walk up the radix tree until finding a node which contributes an
       // octnode
@@ -104,7 +105,8 @@ void k_LinkLeafNodes(OctNode* nodes,
     if (rt_hasLeafRight[i]) {
       int leaf_idx = rt_leftChild[i] + 1;
       int leaf_level = rt_prefixN[i] / 3 + 1;
-      MortonT leaf_prefix = codes[leaf_idx] >> (morton_bits - (3 * leaf_level));
+      unsigned int leaf_prefix =
+          codes[leaf_idx] >> (morton_bits - (3 * leaf_level));
       int which_child = leaf_prefix & 0b111;
       int rt_node = i;
       while (rt_node_counts[rt_node] == 0) {

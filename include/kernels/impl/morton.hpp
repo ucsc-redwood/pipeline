@@ -1,5 +1,7 @@
 #include "kernels/01_morton.hpp"
 
+constexpr auto morton_bits = 30;
+
 namespace cpu {
 
 unsigned int single_point_to_code_v2(

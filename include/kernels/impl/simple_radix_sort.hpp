@@ -9,37 +9,39 @@ constexpr int BASE_BITS = 8;
 constexpr int BASE = (1 << BASE_BITS);
 constexpr int MASK = (BASE - 1);
 
-inline int DIGITS(unsigned int v, int shift) { return (v >> shift) & MASK; }
+inline auto DIGITS(unsigned int v, int shift) -> int {
+  return (v >> shift) & MASK;
+}
 
 inline void omp_lsd_radix_sort(int n, unsigned int* data) {
-  unsigned int* buffer =
+  auto* buffer =
       static_cast<unsigned int*>(std::malloc(n * sizeof(unsigned int)));
-  constexpr int total_digits = sizeof(unsigned int) * 8;
+  constexpr auto total_digits = sizeof(unsigned int) * 8;
 
-  for (int shift = 0; shift < total_digits; shift += BASE_BITS) {
+  for (auto shift = 0; shift < total_digits; shift += BASE_BITS) {
     int bucket[BASE] = {0};
     int local_bucket[BASE] = {0};  // size needed in each bucket/thread
 
 #pragma omp parallel firstprivate(local_bucket)
     {
 #pragma omp for schedule(static) nowait
-      for (int i = 0; i < n; i++) {
+      for (auto i = 0; i < n; i++) {
         local_bucket[DIGITS(data[i], shift)]++;
       }
 #pragma omp critical
-      for (int i = 0; i < BASE; i++) {
+      for (auto i = 0; i < BASE; i++) {
         bucket[i] += local_bucket[i];
       }
 #pragma omp barrier
 #pragma omp single
-      for (int i = 1; i < BASE; i++) {
+      for (auto i = 1; i < BASE; i++) {
         bucket[i] += bucket[i - 1];
       }
-      int nthreads = omp_get_num_threads();
-      int tid = omp_get_thread_num();
-      for (int cur_t = nthreads - 1; cur_t >= 0; cur_t--) {
+      auto nthreads = omp_get_num_threads();
+      auto tid = omp_get_thread_num();
+      for (auto cur_t = nthreads - 1; cur_t >= 0; cur_t--) {
         if (cur_t == tid) {
-          for (int i = 0; i < BASE; i++) {
+          for (auto i = 0; i < BASE; i++) {
             bucket[i] -= local_bucket[i];
             local_bucket[i] = bucket[i];
           }
@@ -48,7 +50,7 @@ inline void omp_lsd_radix_sort(int n, unsigned int* data) {
         }
       }
 #pragma omp for schedule(static)
-      for (int i = 0; i < n; i++) {
+      for (auto i = 0; i < n; i++) {
         buffer[local_bucket[DIGITS(data[i], shift)]++] = data[i];
       }
     }
@@ -61,32 +63,32 @@ inline void omp_lsd_radix_sort(int n, unsigned int* data) {
 inline void omp_lsd_radix_sort(int n,
                                unsigned int* data,
                                unsigned int* data_alt) {
-  constexpr int total_digits = sizeof(unsigned int) * 8;
+  constexpr auto total_digits = sizeof(unsigned int) * 8;
 
-  for (int shift = 0; shift < total_digits; shift += BASE_BITS) {
+  for (auto shift = 0; shift < total_digits; shift += BASE_BITS) {
     int bucket[BASE] = {0};
     int local_bucket[BASE] = {0};  // size needed in each bucket/thread
 
 #pragma omp parallel firstprivate(local_bucket)
     {
 #pragma omp for schedule(static) nowait
-      for (int i = 0; i < n; i++) {
+      for (auto i = 0; i < n; i++) {
         local_bucket[DIGITS(data[i], shift)]++;
       }
 #pragma omp critical
-      for (int i = 0; i < BASE; i++) {
+      for (auto i = 0; i < BASE; i++) {
         bucket[i] += local_bucket[i];
       }
 #pragma omp barrier
 #pragma omp single
-      for (int i = 1; i < BASE; i++) {
+      for (auto i = 1; i < BASE; i++) {
         bucket[i] += bucket[i - 1];
       }
-      int nthreads = omp_get_num_threads();
-      int tid = omp_get_thread_num();
-      for (int cur_t = nthreads - 1; cur_t >= 0; cur_t--) {
+      auto nthreads = omp_get_num_threads();
+      auto tid = omp_get_thread_num();
+      for (auto cur_t = nthreads - 1; cur_t >= 0; cur_t--) {
         if (cur_t == tid) {
-          for (int i = 0; i < BASE; i++) {
+          for (auto i = 0; i < BASE; i++) {
             bucket[i] -= local_bucket[i];
             local_bucket[i] = bucket[i];
           }
@@ -95,7 +97,7 @@ inline void omp_lsd_radix_sort(int n,
         }
       }
 #pragma omp for schedule(static)
-      for (int i = 0; i < n; i++) {
+      for (auto i = 0; i < n; i++) {
         data_alt[local_bucket[DIGITS(data[i], shift)]++] = data[i];
       }
     }

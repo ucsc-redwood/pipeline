@@ -1,4 +1,4 @@
-#include "kernels/morton.hpp"
+#include "kernels/01_morton.hpp"
 
 namespace cpu {
 
@@ -11,8 +11,8 @@ namespace cpu {
 
 namespace {
 
-MortonT morton3D_SplitBy3bits(const CoordT a) {
-  MortonT x = static_cast<MortonT>(a) & 0x000003ff;
+unsigned int morton3D_SplitBy3bits(const unsigned int a) {
+  unsigned int x = static_cast<unsigned int>(a) & 0x000003ff;
   x = (x | x << 16) & 0x30000ff;
   x = (x | x << 8) & 0x0300f00f;
   x = (x | x << 4) & 0x30c30c3;
@@ -20,13 +20,15 @@ MortonT morton3D_SplitBy3bits(const CoordT a) {
   return x;
 }
 
-MortonT m3D_e_magicbits(const CoordT x, const CoordT y, const CoordT z) {
+unsigned int m3D_e_magicbits(const unsigned int x,
+                             const unsigned int y,
+                             const unsigned int z) {
   return morton3D_SplitBy3bits(x) | (morton3D_SplitBy3bits(y) << 1) |
          (morton3D_SplitBy3bits(z) << 2);
 }
 
-CoordT morton3D_GetThirdBits(const MortonT m) {
-  MortonT x = m & 0x9249249;
+unsigned int morton3D_GetThirdBits(const unsigned int m) {
+  unsigned int x = m & 0x9249249;
   x = (x ^ (x >> 2)) & 0x30c30c3;
   x = (x ^ (x >> 4)) & 0x0300f00f;
   x = (x ^ (x >> 8)) & 0x30000ff;
@@ -34,15 +36,15 @@ CoordT morton3D_GetThirdBits(const MortonT m) {
   return x;
 }
 
-void m3D_d_magicbits(const MortonT m, CoordT* xyz) {
+void m3D_d_magicbits(const unsigned int m, unsigned int* xyz) {
   xyz[0] = morton3D_GetThirdBits(m);
   xyz[1] = morton3D_GetThirdBits(m >> 1);
   xyz[2] = morton3D_GetThirdBits(m >> 2);
 }
 
-}  // namespace
+}  // anonymous namespace
 
-MortonT single_point_to_code_v2(
+unsigned int single_point_to_code_v2(
     float x, float y, float z, const float min_coord, const float range) {
   constexpr auto bit_scale = 1024.0f;
 
@@ -50,18 +52,18 @@ MortonT single_point_to_code_v2(
   y = (y - min_coord) / range;
   z = (z - min_coord) / range;
 
-  return m3D_e_magicbits(static_cast<CoordT>(x * bit_scale),
-                         static_cast<CoordT>(y * bit_scale),
-                         static_cast<CoordT>(z * bit_scale));
+  return m3D_e_magicbits(static_cast<unsigned int>(x * bit_scale),
+                         static_cast<unsigned int>(y * bit_scale),
+                         static_cast<unsigned int>(z * bit_scale));
 }
 
 void morton32_to_xyz(glm::vec4* ret,
-                     const MortonT code,
+                     const unsigned int code,
                      const float min_coord,
                      const float range) {
   constexpr auto bit_scale = 1024.0f;
 
-  CoordT dec_raw_x[3];
+  unsigned int dec_raw_x[3];
   m3D_d_magicbits(code, dec_raw_x);
 
   const auto dec_x =

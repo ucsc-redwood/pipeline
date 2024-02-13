@@ -18,7 +18,7 @@ end
 add_requires("openmp", "glm")
 
 includes("kernels")
-includes("benchmarks")
+-- includes("benchmarks")
 
 includes("apps")
 includes("tests")
