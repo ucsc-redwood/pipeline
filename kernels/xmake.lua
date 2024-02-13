@@ -1,9 +1,10 @@
-add_requires("openmp", "tbb")
+add_requires("openmp")
 
 target("kernels")
     set_kind("static")
-    add_includedirs("../include") 
+    add_includedirs("../include")
     add_headerfiles("../include/**/*.hpp")
     add_files("./*.cpp")
-    add_packages("openmp", "tbb", "glm")
-    
+    add_packages("openmp", "glm")
+
+-- includes("cuda")

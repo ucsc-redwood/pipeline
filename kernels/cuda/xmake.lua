@@ -1,0 +1,7 @@
+target("gpu_kernels")
+    set_kind("static")
+    add_includedirs("../../include") 
+    add_headerfiles("../../include/**/*.hpp")
+    add_files("*.cu")
+    add_cugencodes("native")
+    add_packages("openmp", "tbb", "glm")

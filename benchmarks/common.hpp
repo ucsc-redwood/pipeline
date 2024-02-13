@@ -1,88 +1,152 @@
-
 #pragma once
 
-#include <algorithm>
-#include <numeric>
+#include <benchmark/benchmark.h>
+#include <omp.h>
+
+#include <glm/glm.hpp>
+
+#include "types/brt.hpp"
+#include "types/oct.hpp"
+
+namespace bm = benchmark;
 
 #include "config.hpp"
-#include "glm/glm.hpp"
 #include "kernels/all.hpp"
-#include "types/brt.hpp"
+#include "kernels/impl/morton.hpp"
 
-struct BenchmarkData {
-  ~BenchmarkData() {
-    delete[] morton_code;
-    delete[] edge_count;
-    delete[] count_prefix_sum;
-    delete[] oct_nodes;
+template <typename T>
+[[nodiscard]] T* AllocateHost(const size_t n_items) {
+  return static_cast<T*>(malloc(n_items * sizeof(T)));
+}
+
+inline void Free(void* ptr) { free(ptr); }
+
+// Fixture for all benchmarks
+// Basically, run the full application one time. The results of each stage will
+// be stored in the fixture. You should treat them as read-only.
+// Put the output to somewhere else
+class MyFixture : public bm::Fixture {
+ public:
+  MyFixture() {
+    u_input = AllocateHost<glm::vec4>(kN);
+    u_morton = AllocateHost<unsigned int>(kN);
+
+    k_InitRandomVec4(u_input, kN, kMin, kRange, kRandomSeed);
+    k_ComputeMortonCode(u_input, u_morton, kN, kMin, kRange);
+
+    // Better sort and unique thank our kernels.
+    std::sort(u_morton, u_morton + kN);
+    const auto it = std::unique(u_morton, u_morton + kN);
+    n_unique = std::distance(u_morton, it);
+
+    tree.n_nodes = n_unique - 1;
+    tree.prefixN = AllocateHost<uint8_t>(tree.n_nodes);
+    tree.hasLeafLeft = AllocateHost<bool>(tree.n_nodes);
+    tree.hasLeafRight = AllocateHost<bool>(tree.n_nodes);
+    tree.leftChild = AllocateHost<int>(tree.n_nodes);
+    tree.parent = AllocateHost<int>(tree.n_nodes);
+
+    k_BuildRadixTree(tree.n_nodes,
+                     u_morton,
+                     tree.prefixN,
+                     tree.hasLeafLeft,
+                     tree.hasLeafRight,
+                     tree.leftChild,
+                     tree.parent);
+
+    u_edge_count = AllocateHost<int>(tree.n_nodes);
+    u_count_prefix_sum = AllocateHost<int>(n_unique);
+
+    k_EdgeCount(tree.prefixN, tree.parent, u_edge_count, n_unique);
+
+    [[maybe_unused]] auto _ =
+        k_PartialSum(u_edge_count, 0, n_unique, u_count_prefix_sum);
+    u_count_prefix_sum[0] = 0;
+
+    num_oct_nodes = u_count_prefix_sum[tree.n_nodes];
+    u_oct_nodes = AllocateHost<OctNode>(num_oct_nodes);
+
+    const auto root_level = tree.prefixN[0] / 3;
+    const auto root_prefix = u_morton[0] >> (morton_bits - (3 * root_level));
+
+    cpu::morton32_to_xyz(&u_oct_nodes[0].corner,
+                         root_prefix << (morton_bits - (3 * root_level)),
+                         kMin,
+                         kRange);
+    u_oct_nodes[0].cell_size = kRange;
+
+    k_MakeOctNodes(u_oct_nodes,
+                   u_count_prefix_sum,
+                   u_edge_count,
+                   u_morton,
+                   tree.prefixN,
+                   tree.parent,
+                   kMin,
+                   kRange,
+                   num_oct_nodes);
+
+    // k_LinkLeafNodes(u_oct_nodes,
+    //                 u_count_prefix_sum,
+    //                 u_edge_count,
+    //                 u_morton,
+    //                 tree.hasLeafLeft,
+    //                 tree.hasLeafRight,
+    //                 tree.prefixN,
+    //                 tree.parent,
+    //                 tree.leftChild,
+    //                 num_oct_nodes);
+
+    // ----------------- used by output -----------------
+    u_morton_out = AllocateHost<unsigned int>(kN);
+    tree_out.n_nodes = tree.n_nodes;
+    tree_out.prefixN = AllocateHost<uint8_t>(tree.n_nodes);
+    tree_out.hasLeafLeft = AllocateHost<bool>(tree.n_nodes);
+    tree_out.hasLeafRight = AllocateHost<bool>(tree.n_nodes);
+    tree_out.leftChild = AllocateHost<int>(tree.n_nodes);
+    tree_out.parent = AllocateHost<int>(tree.n_nodes);
+    u_edge_count_out = AllocateHost<int>(tree.n_nodes);
+    u_count_prefix_sum_out = AllocateHost<int>(n_unique);
+    u_oct_nodes_out = AllocateHost<OctNode>(num_oct_nodes);
   }
 
-  unsigned int* morton_code;
+  ~MyFixture() {
+    Free(u_input);
+    Free(u_morton);
+    Free(tree.prefixN);
+    Free(tree.hasLeafLeft);
+    Free(tree.hasLeafRight);
+    Free(tree.leftChild);
+    Free(tree.parent);
+    Free(u_edge_count);
+    Free(u_count_prefix_sum);
+    Free(u_oct_nodes);
 
+    Free(u_morton_out);
+    Free(tree_out.prefixN);
+    Free(tree_out.hasLeafLeft);
+    Free(tree_out.hasLeafRight);
+    Free(tree_out.leftChild);
+    Free(tree_out.parent);
+    Free(u_edge_count_out);
+    Free(u_count_prefix_sum_out);
+    Free(u_oct_nodes_out);
+  }
+
+  int n_unique;
+  int num_oct_nodes;
+
+  // These should be treated as read-only
+  glm::vec4* u_input;
+  unsigned int* u_morton;
   RadixTreeData tree;
+  int* u_edge_count;
+  int* u_count_prefix_sum;
+  OctNode* u_oct_nodes;
 
-  int* edge_count;
-  int* count_prefix_sum;
-  OctNode* oct_nodes;
+  // You may use these as output
+  unsigned int* u_morton_out;
+  RadixTreeData tree_out;
+  int* u_edge_count_out;
+  int* u_count_prefix_sum_out;
+  OctNode* u_oct_nodes_out;
 };
-
-[[maybe_unused]] static unsigned int* MakeSortedMortonReal(const int n) {
-  auto data = new glm::vec4[n];
-  k_InitRandomVec4Determinastic(data, n, kMin, kRange, 114514);
-  auto morton_code = new unsigned int[n];
-  k_ComputeMortonCode(data, morton_code, n, kMin, kRange);
-  k_SortKeysInplace(morton_code, n);
-  delete[] data;
-  return morton_code;
-}
-
-[[nodiscard]] static unsigned int* MakeSortedMortonFake(const int n) {
-  auto morton_code = new unsigned int[n];
-  std::iota(morton_code, morton_code + n, 1);
-  return morton_code;
-}
-
-static void MakeRadixTreeFake(unsigned int** morton_code, RadixTreeData& tree) {
-  *morton_code = MakeSortedMortonFake(kN);
-
-  const auto n_unique = static_cast<int>(0.98 * kN);
-
-  tree.n_nodes = n_unique - 1;
-  tree.prefixN = new uint8_t[tree.n_nodes];
-  tree.hasLeafLeft = new bool[tree.n_nodes];
-  tree.hasLeafRight = new bool[tree.n_nodes];
-  tree.leftChild = new int[tree.n_nodes];
-  tree.parent = new int[tree.n_nodes];
-
-  k_BuildRadixTree(tree.n_nodes,
-                   *morton_code,
-                   tree.prefixN,
-                   tree.hasLeafLeft,
-                   tree.hasLeafRight,
-                   tree.leftChild,
-                   tree.parent);
-}
-
-[[nodiscard]] static BenchmarkData MakeRadixTreeAndPrefixSumFake() {
-  BenchmarkData data;
-
-  data.morton_code = MakeSortedMortonFake(kN);
-  MakeRadixTreeFake(&data.morton_code, data.tree);
-
-  data.tree.n_nodes = kN - 1;
-  data.tree.prefixN = new uint8_t[data.tree.n_nodes];
-  data.tree.hasLeafLeft = new bool[data.tree.n_nodes];
-  data.tree.hasLeafRight = new bool[data.tree.n_nodes];
-  data.tree.leftChild = new int[data.tree.n_nodes];
-  data.tree.parent = new int[data.tree.n_nodes];
-
-  data.edge_count = new int[data.tree.n_nodes];
-  k_EdgeCount(
-      data.tree.prefixN, data.tree.parent, data.edge_count, data.tree.n_nodes);
-
-  data.count_prefix_sum = new int[data.tree.n_nodes + 1];
-  k_PartialSum(data.edge_count, 0, data.tree.n_nodes, data.count_prefix_sum);
-  data.count_prefix_sum[0] = 0;
-
-  return data;
-}
