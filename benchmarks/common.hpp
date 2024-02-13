@@ -85,16 +85,16 @@ class MyFixture : public bm::Fixture {
                    kRange,
                    num_oct_nodes);
 
-    k_LinkLeafNodes(u_oct_nodes,
-                    u_count_prefix_sum,
-                    u_edge_count,
-                    u_morton,
-                    tree.hasLeafLeft,
-                    tree.hasLeafRight,
-                    tree.prefixN,
-                    tree.parent,
-                    tree.leftChild,
-                    num_oct_nodes);
+    // k_LinkLeafNodes(u_oct_nodes,
+    //                 u_count_prefix_sum,
+    //                 u_edge_count,
+    //                 u_morton,
+    //                 tree.hasLeafLeft,
+    //                 tree.hasLeafRight,
+    //                 tree.prefixN,
+    //                 tree.parent,
+    //                 tree.leftChild,
+    //                 num_oct_nodes);
 
     // ----------------- used by output -----------------
     u_morton_out = AllocateHost<unsigned int>(kN);
