@@ -11,3 +11,9 @@ BENCHMARK_DEFINE_F(MyFixture, BM_Unique)(bm::State& st) {
     bm::DoNotOptimize(ret);
   }
 }
+
+
+BENCHMARK_REGISTER_F(MyFixture, BM_Unique)
+    ->RangeMultiplier(2)
+    ->Range(1, 4)
+    ->Unit(benchmark::kMillisecond);
