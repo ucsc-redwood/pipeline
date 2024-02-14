@@ -194,7 +194,74 @@ int main(const int argc, const char** argv) {
   const auto is_sorted = std::is_sorted(one_sweep.u_sort, one_sweep.u_sort + n);
   std::cout << "is_sorted = " << std::boolalpha << is_sorted << '\n';
 
+  // ---------------------------------------------------------------------------
+  // TMP
+
+  int* num_unique_out;
+  checkCudaErrors(cudaMallocManaged(&num_unique_out, sizeof(int)));
+
+  unsigned int* u_temp_sort;
+  checkCudaErrors(cudaMallocManaged(&u_temp_sort, n * sizeof(unsigned int)));
+  std::copy(one_sweep.u_sort, one_sweep.u_sort + n, u_temp_sort);
+
+  gpu::k_CountUnique<<<1, 1>>>(u_temp_sort, num_unique_out, n);
+  checkCudaErrors(cudaDeviceSynchronize());
+
+  spdlog::info("num_unique_out = {}", *num_unique_out);
+
+  checkCudaErrors(cudaFree(num_unique_out));
+  checkCudaErrors(cudaFree(u_temp_sort));
+
+  const auto it = std::unique(one_sweep.u_sort, one_sweep.u_sort + n);
+  const auto num_unique = std::distance(one_sweep.u_sort, it);
+
+  spdlog::info("num_unique = {}", num_unique);
+
+  assert(num_unique == *num_unique_out);
+
+  // ---------------------------------------------------------------------------
+
+  RadixTreeData tree;
+  tree.n_nodes = num_unique - 1;
+  AllocManaged(&tree.prefixN, tree.n_nodes);
+  AllocManaged(&tree.hasLeafLeft, tree.n_nodes);
+  AllocManaged(&tree.hasLeafRight, tree.n_nodes);
+  AllocManaged(&tree.leftChild, tree.n_nodes);
+  AllocManaged(&tree.parent, tree.n_nodes);
+
+  gpu::k_BuildRadixTree<<<my_num_blocks, 768>>>(num_unique,
+                                                one_sweep.u_sort,
+                                                tree.prefixN,
+                                                tree.hasLeafLeft,
+                                                tree.hasLeafRight,
+                                                tree.leftChild,
+                                                tree.parent);
+  checkCudaErrors(cudaDeviceSynchronize());
+
+  // peek 10 nodes
+  for (int i = 0; i < 10; ++i) {
+    spdlog::trace(
+        "tree.prefixN[{}] = {}, tree.hasLeafLeft[{}] = {}, "
+        "tree.hasLeafRight[{}] = {}, tree.leftChild[{}] = {}, "
+        "tree.parent[{}] = {}",
+        i,
+        tree.prefixN[i],
+        i,
+        tree.hasLeafLeft[i],
+        i,
+        tree.hasLeafRight[i],
+        i,
+        tree.leftChild[i],
+        i,
+        tree.parent[i]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cleanup
+
   checkCudaErrors(cudaFree(u_data));
+
+  // Radix Sort
   checkCudaErrors(cudaFree(one_sweep.u_sort));
   checkCudaErrors(cudaFree(one_sweep.u_sort_alt));
   checkCudaErrors(cudaFree(one_sweep.u_global_histogram));
@@ -202,6 +269,13 @@ int main(const int argc, const char** argv) {
   for (int i = 0; i < radixPasses; ++i) {
     checkCudaErrors(cudaFree(one_sweep.u_pass_histograms[i]));
   }
+
+  // Radix Tree
+  checkCudaErrors(cudaFree(tree.prefixN));
+  checkCudaErrors(cudaFree(tree.hasLeafLeft));
+  checkCudaErrors(cudaFree(tree.hasLeafRight));
+  checkCudaErrors(cudaFree(tree.leftChild));
+  checkCudaErrors(cudaFree(tree.parent));
 
   return 0;
 }
