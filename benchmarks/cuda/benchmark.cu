@@ -1,6 +1,7 @@
 #include <benchmark/benchmark.h>
 
 #include "bm_01_morton.cuh"
+#include "bm_02_sort.cuh"
 
 int main(int argc, char** argv) {
   int deviceCount;
