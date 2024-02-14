@@ -16,6 +16,7 @@ __global__ void k_MakeOctNodes(OctNode* oct_nodes,
   const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
   const auto stride = blockDim.x * gridDim.x;
 
+  // i > 0 && i < N
   for (auto i = idx; i < N; i += stride) {
     if (i == 0) {
       continue;
@@ -47,6 +48,7 @@ __global__ void k_LinkLeafNodes(OctNode* nodes,
   const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
   const auto stride = blockDim.x * gridDim.x;
 
+  // i < N
   for (auto i = idx; i < N; i += stride) {
     shared::ProcessLinkLeaf(i,
                             nodes,

@@ -3,6 +3,11 @@
 
 #include "cuda/kernels/04_radix_tree.cuh"
 
+// ----------------------------------------------------------------------------
+// Radix tree construction
+// This kernel can not be shared with the CPU, because it uses __clz
+//
+
 namespace gpu {
 
 __device__ __forceinline__ unsigned int ceil_div_u32(const unsigned int a,
