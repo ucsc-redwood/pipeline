@@ -172,8 +172,15 @@ int main(const int argc, const char** argv) {
   // Morton Code
 
   {
-    constexpr auto num_threads = 768;
-    gpu::k_ComputeMortonCode<<<my_num_blocks, num_threads>>>(
+    // constexpr auto num_threads = 768;
+
+    int blockSize = 1;
+    int minGridSize = 1;
+    checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
+        &minGridSize, &blockSize, gpu::k_ComputeMortonCode));
+    spdlog::info("**** blockSize = {}", blockSize);
+
+    gpu::k_ComputeMortonCode<<<my_num_blocks, blockSize>>>(
         u_data, one_sweep.u_sort, n, min, range);
     checkCudaErrors(cudaDeviceSynchronize());
   }

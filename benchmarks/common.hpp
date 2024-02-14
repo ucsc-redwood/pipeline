@@ -11,7 +11,6 @@ namespace bm = benchmark;
 
 #include "config.hpp"
 #include "kernels/all.hpp"
-
 #include "shared/morton.h"
 
 template <typename T>
@@ -70,9 +69,9 @@ class MyFixture : public bm::Fixture {
     const auto root_prefix = u_morton[0] >> (morton_bits - (3 * root_level));
 
     shared::morton32_to_xyz(&u_oct_nodes[0].corner,
-                         root_prefix << (morton_bits - (3 * root_level)),
-                         kMin,
-                         kRange);
+                            root_prefix << (morton_bits - (3 * root_level)),
+                            kMin,
+                            kRange);
     u_oct_nodes[0].cell_size = kRange;
 
     k_MakeOctNodes(u_oct_nodes,

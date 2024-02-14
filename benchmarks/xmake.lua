@@ -8,6 +8,8 @@ target("benchmark")
     add_packages("benchmark", "glm", "openmp")
     add_deps("kernels")
 
+includes("cuda")
+
 -- -- for each file in current directory starts with "bm_" create a benchmark
 -- for _, file in ipairs(os.files("bm_*.cpp")) do
 --     local name = path.basename(file)
