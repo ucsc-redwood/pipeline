@@ -10,6 +10,7 @@
 namespace bm = benchmark;
 
 #include "config.hpp"
+#include "execution.hpp"
 #include "kernels/all.hpp"
 #include "shared/morton.h"
 
@@ -24,17 +25,21 @@ inline void Free(void* ptr) { free(ptr); }
 // Basically, run the full application one time. The results of each stage will
 // be stored in the fixture. You should treat them as read-only.
 // Put the output to somewhere else
-class MyFixture : public bm::Fixture {
+class CpuFixture : public bm::Fixture {
  public:
-  MyFixture() {
+  CpuFixture() {
     u_input = AllocateHost<glm::vec4>(kN);
     u_morton = AllocateHost<unsigned int>(kN);
 
     k_InitRandomVec4(u_input, kN, kMin, kRange, kRandomSeed);
-    k_ComputeMortonCode(u_input, u_morton, kN, kMin, kRange);
+    // k_ComputeMortonCode(u_input, u_morton, kN, kMin, kRange);
+
+    std::transform(EXE_PAR, u_input, u_input + kN, u_morton, [](const auto& v) {
+      return shared::xyz_to_morton32(v, kMin, kRange);
+    });
 
     // Better sort and unique thank our kernels.
-    std::sort(u_morton, u_morton + kN);
+    std::sort(EXE_PAR, u_morton, u_morton + kN);
     const auto it = std::unique(u_morton, u_morton + kN);
     n_unique = std::distance(u_morton, it);
 
@@ -108,7 +113,7 @@ class MyFixture : public bm::Fixture {
     u_oct_nodes_out = AllocateHost<OctNode>(num_oct_nodes);
   }
 
-  ~MyFixture() {
+  ~CpuFixture() {
     Free(u_input);
     Free(u_morton);
     Free(tree.prefixN);
