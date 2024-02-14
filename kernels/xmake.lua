@@ -7,4 +7,4 @@ target("kernels")
     add_files("./*.cpp")
     add_packages("openmp", "glm")
 
--- includes("cuda")
+includes("cuda")
