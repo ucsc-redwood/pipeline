@@ -21,41 +21,51 @@ void AllocManaged(T** ptr, const int n) {
   checkCudaErrors(cudaMallocManaged(ptr, n * sizeof(T)));
 }
 
-const int size = 10'000'000;
 const int radix = 256;
 const int radixPasses = 4;
 const int partitionSize = 7680;
 const int globalHistPartitionSize = 65536;
 const int globalHistThreads = 128;
 const int binningThreads = 512;  // 2080 super seems to really like 512
-const int binningThreadblocks = (size + partitionSize - 1) / partitionSize;
-const int globalHistThreadblocks =
-    (size + globalHistPartitionSize - 1) / globalHistPartitionSize;
+
+// const int binningThreadblocks = (size + partitionSize - 1) / partitionSize;
+// const int globalHistThreadblocks =
+//     (size + globalHistPartitionSize - 1) / globalHistPartitionSize;
+
+constexpr int binningThreadblocks(const int size) {
+  return (size + partitionSize - 1) / partitionSize;
+}
+
+constexpr int globalHistThreadblocks(const int size) {
+  return (size + globalHistPartitionSize - 1) / globalHistPartitionSize;
+}
 
 void InitMemory(unsigned int* u_index,
                 unsigned int* globalHistogram,
                 unsigned int* firstPassHistogram,
                 unsigned int* secPassHistogram,
                 unsigned int* thirdPassHistogram,
-                unsigned int* fourthPassHistogram) {
+                unsigned int* fourthPassHistogram,
+                const int n) {
   cudaMemset(u_index, 0, radixPasses * sizeof(unsigned int));
   cudaMemset(globalHistogram, 0, radix * radixPasses * sizeof(unsigned int));
   cudaMemset(firstPassHistogram,
              0,
-             radix * binningThreadblocks * sizeof(unsigned int));
-  cudaMemset(
-      secPassHistogram, 0, radix * binningThreadblocks * sizeof(unsigned int));
+             radix * binningThreadblocks(n) * sizeof(unsigned int));
+  cudaMemset(secPassHistogram,
+             0,
+             radix * binningThreadblocks(n) * sizeof(unsigned int));
   cudaMemset(thirdPassHistogram,
              0,
-             radix * binningThreadblocks * sizeof(unsigned int));
+             radix * binningThreadblocks(n) * sizeof(unsigned int));
   cudaMemset(fourthPassHistogram,
              0,
-             radix * binningThreadblocks * sizeof(unsigned int));
+             radix * binningThreadblocks(n) * sizeof(unsigned int));
 }
 
 int main(const int argc, const char** argv) {
-  // int n = 10'000'000;
-  int n = size;
+  int n = 10'000'000;
+  // int n = size;
   int n_threads = 4;
   int my_num_blocks = 64;
 
@@ -92,7 +102,8 @@ int main(const int argc, const char** argv) {
   AllocManaged(&one_sweep.u_global_histogram, radix * radixPasses);
   AllocManaged(&one_sweep.u_index, radixPasses);
   for (int i = 0; i < radixPasses; ++i) {
-    AllocManaged(&one_sweep.u_pass_histograms[i], radix * binningThreadblocks);
+    AllocManaged(&one_sweep.u_pass_histograms[i],
+                 radix * binningThreadblocks(n));
   }
 
   {
@@ -128,24 +139,25 @@ int main(const int argc, const char** argv) {
 
   // Sorting kernels
   {
-    InitMemory(one_sweep.u_index,
-               one_sweep.u_global_histogram,
-               one_sweep.u_pass_histograms[0],
-               one_sweep.u_pass_histograms[1],
-               one_sweep.u_pass_histograms[2],
-               one_sweep.u_pass_histograms[3]);
-    checkCudaErrors(cudaDeviceSynchronize());
+    // InitMemory(one_sweep.u_index,
+    //            one_sweep.u_global_histogram,
+    //            one_sweep.u_pass_histograms[0],
+    //            one_sweep.u_pass_histograms[1],
+    //            one_sweep.u_pass_histograms[2],
+    //            one_sweep.u_pass_histograms[3],
+    //            n);
+    // checkCudaErrors(cudaDeviceSynchronize());
 
     spdlog::info("dispatching radix sort... with {} blocks",
-                 globalHistThreadblocks);
+                 globalHistThreadblocks(n));
 
-    gpu::k_GlobalHistogram<<<globalHistThreadblocks, globalHistThreads>>>(
+    gpu::k_GlobalHistogram<<<globalHistThreadblocks(n), globalHistThreads>>>(
         one_sweep.u_sort, one_sweep.u_global_histogram, n);
 
     spdlog::info("dispatching k_DigitBinning... with {} blocks",
-                 binningThreadblocks);
+                 binningThreadblocks(n));
 
-    gpu::k_DigitBinning<<<binningThreadblocks, binningThreads>>>(
+    gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
         one_sweep.u_global_histogram,
         one_sweep.u_sort,
         one_sweep.u_sort_alt,
@@ -154,7 +166,7 @@ int main(const int argc, const char** argv) {
         n,
         0);
 
-    gpu::k_DigitBinning<<<binningThreadblocks, binningThreads>>>(
+    gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
         one_sweep.u_global_histogram,
         one_sweep.u_sort_alt,
         one_sweep.u_sort,
@@ -163,7 +175,7 @@ int main(const int argc, const char** argv) {
         n,
         8);
 
-    gpu::k_DigitBinning<<<binningThreadblocks, binningThreads>>>(
+    gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
         one_sweep.u_global_histogram,
         one_sweep.u_sort,
         one_sweep.u_sort_alt,
@@ -172,7 +184,7 @@ int main(const int argc, const char** argv) {
         n,
         16);
 
-    gpu::k_DigitBinning<<<binningThreadblocks, binningThreads>>>(
+    gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
         one_sweep.u_global_histogram,
         one_sweep.u_sort_alt,
         one_sweep.u_sort,
