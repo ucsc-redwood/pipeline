@@ -29,45 +29,54 @@ constexpr int globalHistThreadblocks(const int size) {
   return (size + globalHistPartitionSize - 1) / globalHistPartitionSize;
 }
 
-void DispatchSortKernels(OneSweepData<4>& one_sweep, const int n) {
-  gpu::k_GlobalHistogram<<<globalHistThreadblocks(n), globalHistThreads>>>(
-      one_sweep.u_sort, one_sweep.u_global_histogram, n);
+void DispatchSortKernels(OneSweepData<4>& one_sweep,
+                         const int n,
+                         const int num_blocks) {
+  gpu::k_GlobalHistogram_WithLogicalBlocks<<<num_blocks, globalHistThreads>>>(
+      one_sweep.u_sort,
+      one_sweep.u_global_histogram,
+      n,
+      globalHistThreadblocks(n));
 
-  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<num_blocks, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort,
       one_sweep.u_sort_alt,
       one_sweep.u_pass_histograms[0],
       one_sweep.u_index,
       n,
-      0);
+      0,
+      binningThreadblocks(n));
 
-  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<num_blocks, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort_alt,
       one_sweep.u_sort,
       one_sweep.u_pass_histograms[1],
       one_sweep.u_index,
       n,
-      8);
+      8,
+      binningThreadblocks(n));
 
-  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<num_blocks, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort,
       one_sweep.u_sort_alt,
       one_sweep.u_pass_histograms[2],
       one_sweep.u_index,
       n,
-      16);
+      16,
+      binningThreadblocks(n));
 
-  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<num_blocks, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort_alt,
       one_sweep.u_sort,
       one_sweep.u_pass_histograms[3],
       one_sweep.u_index,
       n,
-      24);
+      24,
+      binningThreadblocks(n));
 }
 
 static void BM_OneSweepSort(bm::State& st) {
@@ -90,7 +99,7 @@ static void BM_OneSweepSort(bm::State& st) {
   for (auto _ : st) {
     CudaEventTimer timer(st, true);
 
-    DispatchSortKernels(one_sweep, kN);
+    DispatchSortKernels(one_sweep, kN, num_blocks);
   }
 
   (cudaFree(one_sweep.u_sort));

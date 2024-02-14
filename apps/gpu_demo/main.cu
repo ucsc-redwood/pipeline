@@ -83,7 +83,7 @@ void DispatchSortKernels(OneSweepData<4>& one_sweep,
       binningThreadblocks(n),
       num_blocks);
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<1, binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<num_blocks, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort,
       one_sweep.u_sort_alt,
@@ -93,7 +93,7 @@ void DispatchSortKernels(OneSweepData<4>& one_sweep,
       0,
       binningThreadblocks(n));
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<1, binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<num_blocks, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort_alt,
       one_sweep.u_sort,
@@ -103,7 +103,7 @@ void DispatchSortKernels(OneSweepData<4>& one_sweep,
       8,
       binningThreadblocks(n));
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<1, binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<num_blocks, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort,
       one_sweep.u_sort_alt,
@@ -113,7 +113,7 @@ void DispatchSortKernels(OneSweepData<4>& one_sweep,
       16,
       binningThreadblocks(n));
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<1, binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<num_blocks, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort_alt,
       one_sweep.u_sort,
