@@ -63,8 +63,10 @@ void InitMemory(unsigned int* u_index,
 void DispatchSortKernels(OneSweepData<4>& one_sweep,
                          const int n,
                          const auto num_blocks) {
-  spdlog::info("dispatching Hist Gram... with {} blocks",
-               globalHistThreadblocks(n));
+  spdlog::info(
+      "dispatching Histogram... with {} logical blocks, using {} actual blocks",
+      globalHistThreadblocks(n),
+      num_blocks);
 
   gpu::k_GlobalHistogram_WithLogicalBlocks<<<num_blocks, globalHistThreads>>>(
       one_sweep.u_sort,
@@ -75,44 +77,51 @@ void DispatchSortKernels(OneSweepData<4>& one_sweep,
   // gpu::k_GlobalHistogram<<<globalHistThreadblocks(n), globalHistThreads>>>(
   // one_sweep.u_sort, one_sweep.u_global_histogram, n);
 
-  spdlog::info("dispatching k_DigitBinning... with {} blocks",
-               binningThreadblocks(n));
+  spdlog::info(
+      "dispatching k_DigitBinning... with {} logical blocks, using {} actual "
+      "blocks",
+      binningThreadblocks(n),
+      num_blocks);
 
-  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<1, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort,
       one_sweep.u_sort_alt,
       one_sweep.u_pass_histograms[0],
       one_sweep.u_index,
       n,
-      0);
+      0,
+      binningThreadblocks(n));
 
-  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<1, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort_alt,
       one_sweep.u_sort,
       one_sweep.u_pass_histograms[1],
       one_sweep.u_index,
       n,
-      8);
+      8,
+      binningThreadblocks(n));
 
-  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<1, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort,
       one_sweep.u_sort_alt,
       one_sweep.u_pass_histograms[2],
       one_sweep.u_index,
       n,
-      16);
+      16,
+      binningThreadblocks(n));
 
-  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<1, binningThreads>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort_alt,
       one_sweep.u_sort,
       one_sweep.u_pass_histograms[3],
       one_sweep.u_index,
       n,
-      24);
+      24,
+      binningThreadblocks(n));
 }
 
 int main(const int argc, const char** argv) {
