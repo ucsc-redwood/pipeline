@@ -2,6 +2,8 @@
 
 #include "fixture.cuh"
 
+// Honestly, we don't need fixture for this benchmark.
+
 BENCHMARK_DEFINE_F(GpuFixture, BM_Morton)(bm::State& st) {
   const auto num_blocks = st.range(0);
   const auto block_size =

@@ -2,6 +2,9 @@
 
 #include "bm_01_morton.cuh"
 #include "bm_02_sort.cuh"
+#include "bm_04_radix_tree.cuh"
+#include "bm_05_edge_count.cuh"
+#include "bm_07_octree.cuh"
 
 int main(int argc, char** argv) {
   int deviceCount;
