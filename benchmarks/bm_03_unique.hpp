@@ -12,7 +12,6 @@ BENCHMARK_DEFINE_F(CpuFixture, BM_Unique)(bm::State& st) {
   }
 }
 
-
 BENCHMARK_REGISTER_F(CpuFixture, BM_Unique)
     ->RangeMultiplier(2)
     ->Range(1, 4)

@@ -6,5 +6,4 @@ target("benchmark-gpu")
     add_cugencodes("native")
     add_packages("benchmark", "glm", "openmp")
     add_deps("kernels", "gpu_kernels")
-    -- add_cxxflags("-fopenmp")
-    -- add_cuflags("-Xcompiler -fopenmp")
+
