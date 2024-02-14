@@ -75,6 +75,10 @@ namespace gpu {
   2  // Flag value indicating inclusive sum of a partition tile is ready
 #define FLAG_MASK 3  // Mask used to retrieve flag values
 
+// ============================================================================
+// Global Histogram Kernel
+// ============================================================================
+
 __global__ void k_GlobalHistogram(uint32_t *sort,
                                   uint32_t *globalHistogram,
                                   uint32_t size) {
@@ -196,6 +200,146 @@ __global__ void k_GlobalHistogram(uint32_t *sort,
                          : 0));
   }
 }
+
+// ============================================================================
+// Yanwen's version
+// ============================================================================
+
+__global__ void k_GlobalHistogram_WithLogicalBlocks(uint32_t *sort,
+                                                    uint32_t *globalHistogram,
+                                                    uint32_t size,
+                                                    const int logicalBlocks) {
+  __shared__ uint32_t s_globalHistFirst[RADIX * 2];
+  __shared__ uint32_t s_globalHistSec[RADIX * 2];
+  __shared__ uint32_t s_globalHistThird[RADIX * 2];
+  __shared__ uint32_t s_globalHistFourth[RADIX * 2];
+
+  // Replacing blockIdx.x with yanwen_block_id,
+  // and gridDim.x with logicalBlocks
+  for (auto yanwen_block_id = blockIdx.x; yanwen_block_id < logicalBlocks;
+       yanwen_block_id += gridDim.x) {
+    // clear shared memory
+    for (uint32_t i = threadIdx.x; i < RADIX * 2; i += blockDim.x) {
+      s_globalHistFirst[i] = 0;
+      s_globalHistSec[i] = 0;
+      s_globalHistThird[i] = 0;
+      s_globalHistFourth[i] = 0;
+    }
+    __syncthreads();
+
+    // histogram
+    {
+      // 64 threads : 1 histogram in shared memory
+      uint32_t *s_wavesHistFirst = &s_globalHistFirst[threadIdx.x / 64 * RADIX];
+      uint32_t *s_wavesHistSec = &s_globalHistSec[threadIdx.x / 64 * RADIX];
+      uint32_t *s_wavesHistThird = &s_globalHistThird[threadIdx.x / 64 * RADIX];
+      uint32_t *s_wavesHistFourth =
+          &s_globalHistFourth[threadIdx.x / 64 * RADIX];
+
+      if (yanwen_block_id < logicalBlocks - 1) {
+        const uint32_t partEnd = (yanwen_block_id + 1) * G_HIST_VEC_SIZE;
+        for (uint32_t i = threadIdx.x + (yanwen_block_id * G_HIST_VEC_SIZE);
+             i < partEnd;
+             i += blockDim.x) {
+          uint4 t[1] = {reinterpret_cast<uint4 *>(sort)[i]};
+
+          atomicAdd(&s_wavesHistFirst[reinterpret_cast<uint8_t *>(t)[0]], 1);
+          atomicAdd(&s_wavesHistSec[reinterpret_cast<uint8_t *>(t)[1]], 1);
+          atomicAdd(&s_wavesHistThird[reinterpret_cast<uint8_t *>(t)[2]], 1);
+          atomicAdd(&s_wavesHistFourth[reinterpret_cast<uint8_t *>(t)[3]], 1);
+
+          atomicAdd(&s_wavesHistFirst[reinterpret_cast<uint8_t *>(t)[4]], 1);
+          atomicAdd(&s_wavesHistSec[reinterpret_cast<uint8_t *>(t)[5]], 1);
+          atomicAdd(&s_wavesHistThird[reinterpret_cast<uint8_t *>(t)[6]], 1);
+          atomicAdd(&s_wavesHistFourth[reinterpret_cast<uint8_t *>(t)[7]], 1);
+
+          atomicAdd(&s_wavesHistFirst[reinterpret_cast<uint8_t *>(t)[8]], 1);
+          atomicAdd(&s_wavesHistSec[reinterpret_cast<uint8_t *>(t)[9]], 1);
+          atomicAdd(&s_globalHistThird[reinterpret_cast<uint8_t *>(t)[10]], 1);
+          atomicAdd(&s_wavesHistFourth[reinterpret_cast<uint8_t *>(t)[11]], 1);
+
+          atomicAdd(&s_wavesHistFirst[reinterpret_cast<uint8_t *>(t)[12]], 1);
+          atomicAdd(&s_wavesHistSec[reinterpret_cast<uint8_t *>(t)[13]], 1);
+          atomicAdd(&s_wavesHistThird[reinterpret_cast<uint8_t *>(t)[14]], 1);
+          atomicAdd(&s_wavesHistFourth[reinterpret_cast<uint8_t *>(t)[15]], 1);
+        }
+      }
+
+      if (yanwen_block_id == logicalBlocks - 1) {
+        for (uint32_t i = threadIdx.x + (yanwen_block_id * G_HIST_PART_SIZE);
+             i < size;
+             i += blockDim.x) {
+          uint32_t t[1] = {sort[i]};
+          atomicAdd(&s_wavesHistFirst[reinterpret_cast<uint8_t *>(t)[0]], 1);
+          atomicAdd(&s_wavesHistSec[reinterpret_cast<uint8_t *>(t)[1]], 1);
+          atomicAdd(&s_wavesHistThird[reinterpret_cast<uint8_t *>(t)[2]], 1);
+          atomicAdd(&s_wavesHistFourth[reinterpret_cast<uint8_t *>(t)[3]], 1);
+        }
+      }
+    }
+    __syncthreads();
+
+    // reduce to the first hist
+    for (uint32_t i = threadIdx.x; i < RADIX; i += blockDim.x) {
+      s_globalHistFirst[i] += s_globalHistFirst[i + RADIX];
+      s_globalHistSec[i] += s_globalHistSec[i + RADIX];
+      s_globalHistThird[i] += s_globalHistThird[i + RADIX];
+      s_globalHistFourth[i] += s_globalHistFourth[i + RADIX];
+    }
+
+    // exclusive prefix sum over the counts
+    for (uint32_t i = threadIdx.x; i < RADIX; i += blockDim.x) {
+      s_globalHistFirst[i] =
+          InclusiveWarpScanCircularShift(s_globalHistFirst[i]);
+      s_globalHistSec[i] = InclusiveWarpScanCircularShift(s_globalHistSec[i]);
+      s_globalHistThird[i] =
+          InclusiveWarpScanCircularShift(s_globalHistThird[i]);
+      s_globalHistFourth[i] =
+          InclusiveWarpScanCircularShift(s_globalHistFourth[i]);
+    }
+    __syncthreads();
+
+    if (threadIdx.x < (RADIX >> LANE_LOG)) {
+      s_globalHistFirst[threadIdx.x << LANE_LOG] =
+          ActiveExclusiveWarpScan(s_globalHistFirst[threadIdx.x << LANE_LOG]);
+      s_globalHistSec[threadIdx.x << LANE_LOG] =
+          ActiveExclusiveWarpScan(s_globalHistSec[threadIdx.x << LANE_LOG]);
+      s_globalHistThird[threadIdx.x << LANE_LOG] =
+          ActiveExclusiveWarpScan(s_globalHistThird[threadIdx.x << LANE_LOG]);
+      s_globalHistFourth[threadIdx.x << LANE_LOG] =
+          ActiveExclusiveWarpScan(s_globalHistFourth[threadIdx.x << LANE_LOG]);
+    }
+    __syncthreads();
+
+    // Atomically add to device memory
+    for (uint32_t i = threadIdx.x; i < RADIX; i += blockDim.x) {
+      atomicAdd(&globalHistogram[i],
+                s_globalHistFirst[i] +
+                    (getLaneId()
+                         ? __shfl_sync(0xfffffffe, s_globalHistFirst[i - 1], 1)
+                         : 0));
+      atomicAdd(
+          &globalHistogram[i + SEC_RADIX_START],
+          s_globalHistSec[i] +
+              (getLaneId() ? __shfl_sync(0xfffffffe, s_globalHistSec[i - 1], 1)
+                           : 0));
+      atomicAdd(&globalHistogram[i + THIRD_RADIX_START],
+                s_globalHistThird[i] +
+                    (getLaneId()
+                         ? __shfl_sync(0xfffffffe, s_globalHistThird[i - 1], 1)
+                         : 0));
+      atomicAdd(&globalHistogram[i + FOURTH_RADIX_START],
+                s_globalHistFourth[i] +
+                    (getLaneId()
+                         ? __shfl_sync(0xfffffffe, s_globalHistFourth[i - 1], 1)
+                         : 0));
+    }
+  }  // outer logical block loop
+}
+
+// ============================================================================
+// Digit Binning Kernel (One Sweep)
+// ============================================================================
 
 __global__ void k_DigitBinning(uint32_t *globalHistogram,
                                uint32_t *sort,

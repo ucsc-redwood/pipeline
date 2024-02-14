@@ -60,12 +60,20 @@ void InitMemory(unsigned int* u_index,
              radix * binningThreadblocks(n) * sizeof(unsigned int));
 }
 
-void DispatchSortKernels(OneSweepData<4>& one_sweep, const int n) {
-  spdlog::info("dispatching radix sort... with {} blocks",
+void DispatchSortKernels(OneSweepData<4>& one_sweep,
+                         const int n,
+                         const auto num_blocks) {
+  spdlog::info("dispatching Hist Gram... with {} blocks",
                globalHistThreadblocks(n));
 
-  gpu::k_GlobalHistogram<<<globalHistThreadblocks(n), globalHistThreads>>>(
-      one_sweep.u_sort, one_sweep.u_global_histogram, n);
+  gpu::k_GlobalHistogram_WithLogicalBlocks<<<num_blocks, globalHistThreads>>>(
+      one_sweep.u_sort,
+      one_sweep.u_global_histogram,
+      n,
+      globalHistThreadblocks(n));
+
+  // gpu::k_GlobalHistogram<<<globalHistThreadblocks(n), globalHistThreads>>>(
+  // one_sweep.u_sort, one_sweep.u_global_histogram, n);
 
   spdlog::info("dispatching k_DigitBinning... with {} blocks",
                binningThreadblocks(n));
@@ -193,7 +201,7 @@ int main(const int argc, const char** argv) {
   // ---------------------------------------------------------------------------
   // Sorting kernels
 
-  DispatchSortKernels(one_sweep, n);
+  DispatchSortKernels(one_sweep, n, my_num_blocks);
   checkCudaErrors(cudaDeviceSynchronize());
 
   spdlog::info("Done Sorting!");
