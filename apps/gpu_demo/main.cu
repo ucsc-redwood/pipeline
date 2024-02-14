@@ -6,8 +6,7 @@
 #include <glm/glm.hpp>
 
 #include "cuda/common/helper_cuda.hpp"
-// #include "kernels/all.hpp"
-#include "cuda/kernels/00_init.cuh"
+#include "cuda/kernels/all.cuh"
 
 int main(const int argc, const char** argv) {
   int n = 10'000'000;
@@ -43,7 +42,9 @@ int main(const int argc, const char** argv) {
   constexpr auto range = max - min;
 
   glm::vec4* u_data;
+  unsigned int* u_morton_keys;
   checkCudaErrors(cudaMallocManaged(&u_data, n * sizeof(glm::vec4)));
+  checkCudaErrors(cudaMallocManaged(&u_morton_keys, n * sizeof(unsigned int)));
 
   {
     constexpr auto num_threads = 768;
@@ -56,15 +57,28 @@ int main(const int argc, const char** argv) {
 
   // peek 10 elements
   for (int i = 0; i < 10; ++i) {
-    spdlog::info("u_data[{}] = ({}, {}, {}, {})",
-                 i,
-                 u_data[i].x,
-                 u_data[i].y,
-                 u_data[i].z,
-                 u_data[i].w);
+    spdlog::debug("u_data[{}] = ({}, {}, {}, {})",
+                  i,
+                  u_data[i].x,
+                  u_data[i].y,
+                  u_data[i].z,
+                  u_data[i].w);
+  }
+
+  {
+    constexpr auto num_threads = 768;
+    gpu::k_ComputeMortonCode<<<my_num_blocks, num_threads>>>(
+        u_data, u_morton_keys, n, min, range);
+    checkCudaErrors(cudaDeviceSynchronize());
+  }
+
+  // peek 10 elements
+  for (int i = 0; i < 10; ++i) {
+    spdlog::info("u_morton_keys[{}] = {}", i, u_morton_keys[i]);
   }
 
   checkCudaErrors(cudaFree(u_data));
+  checkCudaErrors(cudaFree(u_morton_keys));
 
   return 0;
 }

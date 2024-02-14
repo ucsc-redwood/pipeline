@@ -12,6 +12,4 @@ void morton32_to_xyz(glm::vec4* ret,
                      float min_coord,
                      float range);
 
-[[maybe_unused]] int compare_uint32_t(const void* a, const void* b);
-
 }  // namespace cpu

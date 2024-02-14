@@ -1,8 +1,8 @@
 #pragma once
 
-#include "constants.hpp"
-
 #include <stdexcept>
+
+#include "constants.hpp"
 
 template <class T>
 [[nodiscard]] static int DetermineBlockSize(T func) {

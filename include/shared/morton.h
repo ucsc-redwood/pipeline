@@ -1,13 +1,20 @@
 #pragma once
 
-namespace gpu {
+#include <glm/glm.hpp>
+
+#if defined(__CUDACC__)
+#define H_D_I __host__ __device__ __forceinline__
+#else
+#define H_D_I inline
+#endif
+
+namespace shared {
 
 // ---------------------------------------------------------------------
 // Encode
 // ---------------------------------------------------------------------
 
-__host__ __device__ __forceinline__ unsigned int morton3D_SplitBy3bits(
-    const unsigned int a) {
+H_D_I unsigned int morton3D_SplitBy3bits(const unsigned int a) {
   auto x = static_cast<unsigned int>(a) & 0x000003ff;
   x = (x | x << 16) & 0x30000ff;
   x = (x | x << 8) & 0x0300f00f;
@@ -16,14 +23,16 @@ __host__ __device__ __forceinline__ unsigned int morton3D_SplitBy3bits(
   return x;
 }
 
-__host__ __device__ __forceinline__ unsigned int m3D_e_magicbits(
-    const unsigned int x, const unsigned int y, const unsigned int z) {
+H_D_I unsigned int m3D_e_magicbits(const unsigned int x,
+                                   const unsigned int y,
+                                   const unsigned int z) {
   return morton3D_SplitBy3bits(x) | (morton3D_SplitBy3bits(y) << 1) |
          (morton3D_SplitBy3bits(z) << 2);
 }
 
-[[nodiscard]] __host__ __device__ __forceinline__ unsigned int xyz_to_morton32(
-    const glm::vec4& xyz, const float min_coord, const float range) {
+[[nodiscard]] H_D_I unsigned int xyz_to_morton32(const glm::vec4& xyz,
+                                                 const float min_coord,
+                                                 const float range) {
   constexpr auto bit_scale = 1024;
   const auto i = static_cast<uint32_t>((xyz.x - min_coord) / range * bit_scale);
   const auto j = static_cast<uint32_t>((xyz.y - min_coord) / range * bit_scale);
@@ -35,8 +44,7 @@ __host__ __device__ __forceinline__ unsigned int m3D_e_magicbits(
 // Decode
 // ---------------------------------------------------------------------
 
-__host__ __device__ __forceinline__ unsigned int morton3D_GetThirdBits(
-    const unsigned int m) {
+H_D_I unsigned int morton3D_GetThirdBits(const unsigned int m) {
   auto x = m & 0x9249249;
   x = (x ^ (x >> 2)) & 0x30c30c3;
   x = (x ^ (x >> 4)) & 0x0300f00f;
@@ -45,18 +53,16 @@ __host__ __device__ __forceinline__ unsigned int morton3D_GetThirdBits(
   return x;
 }
 
-__host__ __device__ __forceinline__ void m3D_d_magicbits(const unsigned int m,
-                                                         unsigned int* xyz) {
+H_D_I void m3D_d_magicbits(const unsigned int m, unsigned int* xyz) {
   xyz[0] = morton3D_GetThirdBits(m);
   xyz[1] = morton3D_GetThirdBits(m >> 1);
   xyz[2] = morton3D_GetThirdBits(m >> 2);
 }
 
-__host__ __device__ __forceinline__ void morton32_to_xyz(
-    glm::vec4* ret,
-    const unsigned int code,
-    const float min_coord,
-    const float range) {
+H_D_I void morton32_to_xyz(glm::vec4* ret,
+                           const unsigned int code,
+                           const float min_coord,
+                           const float range) {
   constexpr auto bit_scale = 1024.0f;
 
   unsigned int dec_raw_x[3];
@@ -75,4 +81,4 @@ __host__ __device__ __forceinline__ void morton32_to_xyz(
   (*ret)[3] = 1.0f;
 }
 
-}  // namespace gpu
+}  // namespace shared
