@@ -7,6 +7,7 @@
 
 #include "cuda/common/helper_cuda.hpp"
 #include "cuda/kernels/all.cuh"
+#include "shared/morton.h"
 #include "shared/types.h"
 
 template <typename T>
@@ -108,7 +109,6 @@ void DispatchSortKernels(OneSweepData<4>& one_sweep, const int n) {
 
 int main(const int argc, const char** argv) {
   int n = 10'000'000;
-  // int n = size;
   int n_threads = 4;
   int my_num_blocks = 64;
 
@@ -168,6 +168,9 @@ int main(const int argc, const char** argv) {
                   u_data[i].w);
   }
 
+  // ---------------------------------------------------------------------------
+  // Morton Code
+
   {
     constexpr auto num_threads = 768;
     gpu::k_ComputeMortonCode<<<my_num_blocks, num_threads>>>(
@@ -180,7 +183,9 @@ int main(const int argc, const char** argv) {
     spdlog::debug("one_sweep.u_sort[{}] = {}", i, one_sweep.u_sort[i]);
   }
 
+  // ---------------------------------------------------------------------------
   // Sorting kernels
+
   DispatchSortKernels(one_sweep, n);
   checkCudaErrors(cudaDeviceSynchronize());
 
@@ -195,7 +200,7 @@ int main(const int argc, const char** argv) {
   std::cout << "is_sorted = " << std::boolalpha << is_sorted << '\n';
 
   // ---------------------------------------------------------------------------
-  // TMP
+  // Unique (Temporary)
 
   int* num_unique_out;
   checkCudaErrors(cudaMallocManaged(&num_unique_out, sizeof(int)));
@@ -220,6 +225,7 @@ int main(const int argc, const char** argv) {
   assert(num_unique == *num_unique_out);
 
   // ---------------------------------------------------------------------------
+  // Build Radix Tree
 
   RadixTreeData tree;
   tree.n_nodes = num_unique - 1;
@@ -254,6 +260,84 @@ int main(const int argc, const char** argv) {
         tree.leftChild[i],
         i,
         tree.parent[i]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Edge Count & Prefix Sum
+
+  auto u_edge_count = AllocManaged<int>(tree.n_nodes);
+
+  gpu::k_EdgeCount<<<my_num_blocks, 768>>>(
+      tree.prefixN, tree.parent, u_edge_count, tree.n_nodes);
+  checkCudaErrors(cudaDeviceSynchronize());
+
+  // peek 10 elements
+  for (int i = 0; i < 10; ++i) {
+    spdlog::trace("u_edge_count[{}] = {}", i, u_edge_count[i]);
+  }
+
+  auto u_prefix_sum = AllocManaged<int>(num_unique);
+
+  // [[maybe_unused]] auto _ =
+  //     k_PartialSum(u_edge_count, 0, num_unique, u_prefix_sum);
+  // u_prefix_sum[0] = 0;
+
+  // TODO: find a way to parallelize this on GPU
+  std::partial_sum(u_edge_count, u_edge_count + num_unique, u_prefix_sum);
+  u_prefix_sum[0] = 0;
+
+  for (int i = 0; i < 10; ++i) {
+    spdlog::trace("u_prefix_sum[{}] = {}", i, u_prefix_sum[i]);
+  }
+
+  const auto num_oct_nodes = u_prefix_sum[tree.n_nodes];
+  spdlog::info("num_oct_nodes = {}", num_oct_nodes);
+
+  // ---------------------------------------------------------------------------
+  // Octree
+
+  OctNode* u_oct_nodes = AllocManaged<OctNode>(num_oct_nodes);
+
+  const auto root_level = tree.prefixN[0] / 3;
+  const auto root_prefix =
+      one_sweep.u_sort[0] >> (morton_bits - (3 * root_level));
+
+  shared::morton32_to_xyz(&u_oct_nodes[0].corner,
+                          root_prefix << (morton_bits - (3 * root_level)),
+                          min,
+                          range);
+  u_oct_nodes[0].cell_size = range;
+
+  gpu::k_MakeOctNodes<<<my_num_blocks, 768>>>(
+      u_oct_nodes,
+      u_prefix_sum,
+      u_edge_count,
+      one_sweep.u_sort,
+      tree.prefixN,
+      tree.parent,
+      min,
+      range,
+      tree.n_nodes /* Yanwen Verified */);
+
+  gpu::k_LinkLeafNodes<<<my_num_blocks, 768>>>(u_oct_nodes,
+                                               u_prefix_sum,
+                                               u_edge_count,
+                                               one_sweep.u_sort,
+                                               tree.hasLeafLeft,
+                                               tree.hasLeafRight,
+                                               tree.prefixN,
+                                               tree.parent,
+                                               tree.leftChild,
+                                               tree.n_nodes);
+
+  checkCudaErrors(cudaDeviceSynchronize());
+
+  for (auto i = 0; i < 10; ++i) {
+    spdlog::info("u_oct_nodes[{}].corner = ({}, {}, {})",
+                 i,
+                 u_oct_nodes[i].corner.x,
+                 u_oct_nodes[i].corner.y,
+                 u_oct_nodes[i].corner.z);
   }
 
   // ---------------------------------------------------------------------------

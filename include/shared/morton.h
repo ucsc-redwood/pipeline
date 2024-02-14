@@ -2,11 +2,7 @@
 
 #include <glm/glm.hpp>
 
-#if defined(__CUDACC__)
-#define H_D_I __host__ __device__ __forceinline__
-#else
-#define H_D_I inline
-#endif
+#include "defines.h"
 
 constexpr auto morton_bits = 30;
 

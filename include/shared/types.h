@@ -2,10 +2,9 @@
 
 #include <glm/glm.hpp>
 
-// #include "sort_constants.h"
-
 // =============================================================================
 // POD types
+// The user should handle the memory allocation and deallocation (CPU/GPU)
 // =============================================================================
 
 /**

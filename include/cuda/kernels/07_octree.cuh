@@ -4,15 +4,16 @@
 
 namespace gpu {
 
-__global__ void k_MakeOctNodes(OctNode* oct_nodes,
-                               const int* node_offsets,    // prefix sum
-                               const int* rt_node_counts,  // edge count
-                               const unsigned int* codes,
-                               const uint8_t* rt_prefixN,
-                               const int* rt_parents,
-                               float min_coord,
-                               float range,
-                               int N  // number of brt nodes
+__global__ void k_MakeOctNodes(
+    OctNode* oct_nodes,
+    const int* node_offsets,    // prefix sum
+    const int* rt_node_counts,  // edge count
+    const unsigned int* codes,
+    const uint8_t* rt_prefixN,
+    const int* rt_parents,
+    float min_coord,
+    float range,
+    int N  // number of brt nodes ? really? Yanwen: Yes
 );
 
 __global__ void k_LinkLeafNodes(OctNode* nodes,
@@ -24,5 +25,6 @@ __global__ void k_LinkLeafNodes(OctNode* nodes,
                                 const uint8_t* rt_prefixN,
                                 const int* rt_parents,
                                 const int* rt_leftChild,
-                                int N);
+                                const int N);
+
 }  // namespace gpu

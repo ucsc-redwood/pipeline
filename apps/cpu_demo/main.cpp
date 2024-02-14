@@ -139,7 +139,8 @@ int main(const int argc, const char** argv) {
                  tree.parent,
                  min,
                  range,
-                 num_oct_nodes);
+                 tree.n_nodes);
+  //  num_oct_nodes);
 
   k_LinkLeafNodes(u_oct_nodes,
                   u_count_prefix_sum,
@@ -150,7 +151,8 @@ int main(const int argc, const char** argv) {
                   tree.prefixN,
                   tree.parent,
                   tree.leftChild,
-                  num_oct_nodes);
+                  tree.n_nodes);
+  // num_oct_nodes);
 
   // ---------------------------------------------------------------------------
 
