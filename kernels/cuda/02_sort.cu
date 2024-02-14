@@ -44,12 +44,9 @@ namespace gpu {
 #define RADIX_MASK 255  // Mask of digit bins, to extract digits
 #define RADIX_LOG 8     // log2(RADIX)
 
-#define SEC_RADIX_START \
-  256  // Offset for retrieving value from global histogram buffer
-#define THIRD_RADIX_START \
-  512  // Offset for retrieving value from global histogram buffer
-#define FOURTH_RADIX_START \
-  768  // Offset for retrieving value from global histogram buffer
+#define SEC_RADIX_START 256
+#define THIRD_RADIX_START 512
+#define FOURTH_RADIX_START 768
 
 // For the upfront global histogram kernel
 #define G_HIST_PART_SIZE 65536
@@ -416,10 +413,6 @@ __global__ void k_DigitBinning(uint32_t *globalHistogram,
       if (i < size) alt[offset] = key;
     }
   }
-}
-
-__global__ void k_Print(unsigned int *toPrint, int size) {
-  for (int i = 0; i < size; ++i) printf("%d: %u \n", i, toPrint[i] & 255);
 }
 
 }  // namespace gpu

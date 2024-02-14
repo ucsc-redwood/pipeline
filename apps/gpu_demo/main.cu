@@ -28,10 +28,6 @@ const int globalHistPartitionSize = 65536;
 const int globalHistThreads = 128;
 const int binningThreads = 512;  // 2080 super seems to really like 512
 
-// const int binningThreadblocks = (size + partitionSize - 1) / partitionSize;
-// const int globalHistThreadblocks =
-//     (size + globalHistPartitionSize - 1) / globalHistPartitionSize;
-
 constexpr int binningThreadblocks(const int size) {
   return (size + partitionSize - 1) / partitionSize;
 }
@@ -61,6 +57,53 @@ void InitMemory(unsigned int* u_index,
   cudaMemset(fourthPassHistogram,
              0,
              radix * binningThreadblocks(n) * sizeof(unsigned int));
+}
+
+void DispatchSortKernels(OneSweepData<4>& one_sweep, const int n) {
+  spdlog::info("dispatching radix sort... with {} blocks",
+               globalHistThreadblocks(n));
+
+  gpu::k_GlobalHistogram<<<globalHistThreadblocks(n), globalHistThreads>>>(
+      one_sweep.u_sort, one_sweep.u_global_histogram, n);
+
+  spdlog::info("dispatching k_DigitBinning... with {} blocks",
+               binningThreadblocks(n));
+
+  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+      one_sweep.u_global_histogram,
+      one_sweep.u_sort,
+      one_sweep.u_sort_alt,
+      one_sweep.u_pass_histograms[0],
+      one_sweep.u_index,
+      n,
+      0);
+
+  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+      one_sweep.u_global_histogram,
+      one_sweep.u_sort_alt,
+      one_sweep.u_sort,
+      one_sweep.u_pass_histograms[1],
+      one_sweep.u_index,
+      n,
+      8);
+
+  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+      one_sweep.u_global_histogram,
+      one_sweep.u_sort,
+      one_sweep.u_sort_alt,
+      one_sweep.u_pass_histograms[2],
+      one_sweep.u_index,
+      n,
+      16);
+
+  gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
+      one_sweep.u_global_histogram,
+      one_sweep.u_sort_alt,
+      one_sweep.u_sort,
+      one_sweep.u_pass_histograms[3],
+      one_sweep.u_index,
+      n,
+      24);
 }
 
 int main(const int argc, const char** argv) {
@@ -138,63 +181,8 @@ int main(const int argc, const char** argv) {
   }
 
   // Sorting kernels
-  {
-    // InitMemory(one_sweep.u_index,
-    //            one_sweep.u_global_histogram,
-    //            one_sweep.u_pass_histograms[0],
-    //            one_sweep.u_pass_histograms[1],
-    //            one_sweep.u_pass_histograms[2],
-    //            one_sweep.u_pass_histograms[3],
-    //            n);
-    // checkCudaErrors(cudaDeviceSynchronize());
-
-    spdlog::info("dispatching radix sort... with {} blocks",
-                 globalHistThreadblocks(n));
-
-    gpu::k_GlobalHistogram<<<globalHistThreadblocks(n), globalHistThreads>>>(
-        one_sweep.u_sort, one_sweep.u_global_histogram, n);
-
-    spdlog::info("dispatching k_DigitBinning... with {} blocks",
-                 binningThreadblocks(n));
-
-    gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
-        one_sweep.u_global_histogram,
-        one_sweep.u_sort,
-        one_sweep.u_sort_alt,
-        one_sweep.u_pass_histograms[0],
-        one_sweep.u_index,
-        n,
-        0);
-
-    gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
-        one_sweep.u_global_histogram,
-        one_sweep.u_sort_alt,
-        one_sweep.u_sort,
-        one_sweep.u_pass_histograms[1],
-        one_sweep.u_index,
-        n,
-        8);
-
-    gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
-        one_sweep.u_global_histogram,
-        one_sweep.u_sort,
-        one_sweep.u_sort_alt,
-        one_sweep.u_pass_histograms[2],
-        one_sweep.u_index,
-        n,
-        16);
-
-    gpu::k_DigitBinning<<<binningThreadblocks(n), binningThreads>>>(
-        one_sweep.u_global_histogram,
-        one_sweep.u_sort_alt,
-        one_sweep.u_sort,
-        one_sweep.u_pass_histograms[3],
-        one_sweep.u_index,
-        n,
-        24);
-
-    checkCudaErrors(cudaDeviceSynchronize());
-  }
+  DispatchSortKernels(one_sweep, n);
+  checkCudaErrors(cudaDeviceSynchronize());
 
   spdlog::info("Done Sorting!");
 

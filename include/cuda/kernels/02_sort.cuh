@@ -18,6 +18,4 @@ __global__ void k_DigitBinning(uint32_t *globalHistogram,
                                uint32_t size,
                                uint32_t radixShift);
 
-__global__ void k_Print(unsigned int *toPrint, int size);
-
 }  // namespace gpu
