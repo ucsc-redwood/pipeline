@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 
-#include "sort_constants.h"
+// #include "sort_constants.h"
 
 // =============================================================================
 // POD types
@@ -39,6 +39,8 @@ struct OctNode {
  * steps in the sorting algorithm.
  *
  */
+
+template <int NUM_PASS>
 struct OneSweepData {
   /**
    * @brief The number of elements to sort. E.g. 10M
@@ -60,5 +62,5 @@ struct OneSweepData {
    * @brief An array of pointers.
    * Each w/ kRadix * kRadixPasses, e.g. 256 * 4 (Each!)
    */
-  unsigned int *u_pass_histograms[kRadixPasses];
+  unsigned int *u_pass_histograms[NUM_PASS];
 };
