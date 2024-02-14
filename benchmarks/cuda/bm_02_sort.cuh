@@ -5,6 +5,7 @@
 #include <benchmark/benchmark.h>
 
 #include <algorithm>
+#include <cub/cub.cuh>
 #include <random>
 
 #include "cuda_bench_helper.cuh"
@@ -69,8 +70,8 @@ void DispatchSortKernels(OneSweepData<4>& one_sweep, const int n) {
       24);
 }
 
-static void BM_OneSweepSort(bm::State& state) {
-  const auto num_blocks = state.range(0);
+static void BM_OneSweepSort(bm::State& st) {
+  const auto num_blocks = st.range(0);
 
   OneSweepData<4> one_sweep;
   one_sweep.u_sort = AllocateManaged<unsigned int>(kN);
@@ -86,8 +87,8 @@ static void BM_OneSweepSort(bm::State& state) {
 
   std::generate(EXE_PAR, one_sweep.u_sort, one_sweep.u_sort + kN, std::rand);
 
-  for (auto _ : state) {
-    CudaEventTimer timer(state, true);
+  for (auto _ : st) {
+    CudaEventTimer timer(st, true);
 
     DispatchSortKernels(one_sweep, kN);
   }
@@ -100,6 +101,33 @@ static void BM_OneSweepSort(bm::State& state) {
     (cudaFree(one_sweep.u_pass_histograms[i]));
   }
 }
+
+static void BM_CubSort(bm::State& st) {
+  auto u_data = AllocateManaged<unsigned int>(kN);
+  auto u_data_alt = AllocateManaged<unsigned int>(kN);
+  std::generate(EXE_PAR, u_data, u_data + kN, std::rand);
+
+  size_t temp_storage_bytes = 0;
+  void* d_temp_storage = nullptr;
+
+  cub::DeviceRadixSort::SortKeys(
+      d_temp_storage, temp_storage_bytes, u_data, u_data_alt, kN);
+
+  cudaMalloc(&d_temp_storage, temp_storage_bytes);
+
+  for (auto _ : st) {
+    CudaEventTimer timer(st, true);
+
+    cub::DeviceRadixSort::SortKeys(
+        d_temp_storage, temp_storage_bytes, u_data, u_data_alt, kN);
+  }
+
+  Free(u_data);
+  Free(u_data_alt);
+  Free(d_temp_storage);
+}
+
+BENCHMARK(BM_CubSort)->UseManualTime()->Iterations(10)->Unit(bm::kMillisecond);
 
 BENCHMARK(BM_OneSweepSort)
     ->RangeMultiplier(2)
