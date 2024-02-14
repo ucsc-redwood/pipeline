@@ -7,7 +7,7 @@
 
 #include "kernels/02_sort.hpp"
 #include "kernels/all.hpp"
-#include "kernels/impl/morton.hpp"
+#include "shared/morton.h"
 #include "types/brt.hpp"
 
 void checkTree(const unsigned int prefix,
@@ -125,10 +125,10 @@ int main(const int argc, const char** argv) {
   const auto root_level = tree.prefixN[0] / 3;
   const auto root_prefix = u_sort[0] >> (morton_bits - (3 * root_level));
 
-  cpu::morton32_to_xyz(&u_oct_nodes[0].corner,
-                       root_prefix << (morton_bits - (3 * root_level)),
-                       min,
-                       range);
+  shared::morton32_to_xyz(&u_oct_nodes[0].corner,
+                          root_prefix << (morton_bits - (3 * root_level)),
+                          min,
+                          range);
   u_oct_nodes[0].cell_size = range;
 
   k_MakeOctNodes(u_oct_nodes,

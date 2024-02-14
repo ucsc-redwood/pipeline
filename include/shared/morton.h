@@ -8,6 +8,8 @@
 #define H_D_I inline
 #endif
 
+constexpr auto morton_bits = 30;
+
 namespace shared {
 
 // ---------------------------------------------------------------------

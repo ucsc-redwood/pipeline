@@ -9,7 +9,7 @@ BENCHMARK_DEFINE_F(MyFixture, BM_MakeOctreeNodes)(bm::State& st) {
   const auto root_level = tree.prefixN[0] / 3;
   const auto root_prefix = u_morton[0] >> (morton_bits - (3 * root_level));
 
-  cpu::morton32_to_xyz(&u_oct_nodes_out[0].corner,
+  shared::morton32_to_xyz(&u_oct_nodes_out[0].corner,
                        root_prefix << (morton_bits - (3 * root_level)),
                        kMin,
                        kRange);
@@ -35,7 +35,7 @@ BENCHMARK_DEFINE_F(MyFixture, BM_LinkOctreeNodes)(bm::State& st) {
   const auto root_level = tree.prefixN[0] / 3;
   const auto root_prefix = u_morton[0] >> (morton_bits - (3 * root_level));
 
-  cpu::morton32_to_xyz(&u_oct_nodes_out[0].corner,
+  shared::morton32_to_xyz(&u_oct_nodes_out[0].corner,
                        root_prefix << (morton_bits - (3 * root_level)),
                        kMin,
                        kRange);

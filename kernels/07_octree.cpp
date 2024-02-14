@@ -1,6 +1,6 @@
 #include "kernels/07_octree.hpp"
 
-#include "kernels/impl/morton.hpp"
+#include "shared/morton.h"
 
 void SetChild(OctNode* node,
               const unsigned int which_child,
@@ -44,10 +44,10 @@ void k_MakeOctNodes(OctNode* oct_nodes,
 
       SetChild(&oct_nodes[parent], which_child, oct_idx);
 
-      cpu::morton32_to_xyz(&oct_nodes[oct_idx].corner,
-                           node_prefix << (morton_bits - (3 * level)),
-                           min_coord,
-                           range);
+      shared::morton32_to_xyz(&oct_nodes[oct_idx].corner,
+                              node_prefix << (morton_bits - (3 * level)),
+                              min_coord,
+                              range);
 
       // each cell is half the size of the level above it
       oct_nodes[oct_idx].cell_size =
@@ -77,10 +77,11 @@ void k_MakeOctNodes(OctNode* oct_nodes,
 
       SetChild(&oct_nodes[oct_parent], which_child, oct_idx);
 
-      cpu::morton32_to_xyz(&oct_nodes[oct_idx].corner,
-                           top_node_prefix << (morton_bits - (3 * top_level)),
-                           min_coord,
-                           range);
+      shared::morton32_to_xyz(
+          &oct_nodes[oct_idx].corner,
+          top_node_prefix << (morton_bits - (3 * top_level)),
+          min_coord,
+          range);
       oct_nodes[oct_idx].cell_size =
           range / static_cast<float>(1 << (top_level - root_level));
     }

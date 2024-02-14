@@ -12,7 +12,8 @@ namespace bm = benchmark;
 
 #include "config.hpp"
 #include "kernels/all.hpp"
-#include "kernels/impl/morton.hpp"
+
+#include "shared/morton.h"
 
 template <typename T>
 [[nodiscard]] T* AllocateHost(const size_t n_items) {
@@ -69,7 +70,7 @@ class MyFixture : public bm::Fixture {
     const auto root_level = tree.prefixN[0] / 3;
     const auto root_prefix = u_morton[0] >> (morton_bits - (3 * root_level));
 
-    cpu::morton32_to_xyz(&u_oct_nodes[0].corner,
+    shared::morton32_to_xyz(&u_oct_nodes[0].corner,
                          root_prefix << (morton_bits - (3 * root_level)),
                          kMin,
                          kRange);
