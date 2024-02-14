@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include "kernels/impl/simple_radix_sort.hpp"
+#include "kernels/02_sort.hpp"
 
 int main(const int argc, const char** argv) {
   int n = argc - 1;
@@ -14,7 +14,7 @@ int main(const int argc, const char** argv) {
   }
 
   omp_set_num_threads(4);
-  cpu::omp_lsd_radix_sort(n, data);
+  k_SimpleRadixSort(data, n);
 
   for (int i = 0; i < n; i++) std::cout << data[i] << " ";
 
