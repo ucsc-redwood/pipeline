@@ -23,4 +23,4 @@ BENCHMARK_REGISTER_F(GpuFixture, BM_Morton32)
     ->RangeMultiplier(2)
     ->Range(1, 1 << 10)
     ->UseManualTime()
-    ->Unit(benchmark::kMicrosecond);
+    ->Unit(bm::kMillisecond);

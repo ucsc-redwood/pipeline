@@ -20,4 +20,4 @@ BENCHMARK_DEFINE_F(CpuFixture, BM_BuildRadixTree)(bm::State& st) {
 BENCHMARK_REGISTER_F(CpuFixture, BM_BuildRadixTree)
     ->RangeMultiplier(2)
     ->Range(1, 48)
-    ->Unit(benchmark::kMillisecond);
+    ->Unit(bm::kMillisecond);

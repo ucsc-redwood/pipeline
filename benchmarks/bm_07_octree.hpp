@@ -68,9 +68,9 @@ BENCHMARK_DEFINE_F(CpuFixture, BM_LinkOctreeNodes)(bm::State& st) {
 BENCHMARK_REGISTER_F(CpuFixture, BM_MakeOctreeNodes)
     ->RangeMultiplier(2)
     ->Range(1, 48)
-    ->Unit(benchmark::kMillisecond);
+    ->Unit(bm::kMillisecond);
 
 BENCHMARK_REGISTER_F(CpuFixture, BM_LinkOctreeNodes)
     ->RangeMultiplier(2)
     ->Range(1, 48)
-    ->Unit(benchmark::kMillisecond);
+    ->Unit(bm::kMillisecond);

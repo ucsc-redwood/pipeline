@@ -14,4 +14,4 @@ BENCHMARK_DEFINE_F(CpuFixture, BM_EdgeCount)(bm::State& st) {
 BENCHMARK_REGISTER_F(CpuFixture, BM_EdgeCount)
     ->RangeMultiplier(2)
     ->Range(1, 48)
-    ->Unit(benchmark::kMillisecond);
+    ->Unit(bm::kMillisecond);
