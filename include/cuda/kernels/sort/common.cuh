@@ -2,7 +2,7 @@
 
 #include <stdexcept>
 
-#include "constants.hpp"
+#include "shared/sort_constants.h"
 
 template <class T>
 [[nodiscard]] static int DetermineBlockSize(T func) {
