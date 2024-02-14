@@ -1,7 +1,12 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
-#include "cuda/common/helper_cuda.hpp"
+#include "cuda/kernels/04_radix_tree.cuh"
+
+// ----------------------------------------------------------------------------
+// Radix tree construction
+// This kernel can not be shared with the CPU, because it uses __clz
+//
 
 namespace gpu {
 
@@ -33,8 +38,6 @@ __device__ __forceinline__ void ProcessRadixTreeNode(const int i,
                                                      bool* has_leaf_right,
                                                      int* left_child,
                                                      int* parent) {
-  //   for (int i = 0; i < n; i++) {
-
   const auto code_i = codes[i];
   // Determine direction of the range (+1 or -1)
   int d;
@@ -107,17 +110,15 @@ __device__ __forceinline__ void ProcessRadixTreeNode(const int i,
   if (!has_leaf_right[i]) {
     parent[gamma + 1] = i;
   }
-
-  //   }
 }
 
-__global__ void k_BuildRadixTree_Kernel(const int n /* n_pts */,
-                                        const unsigned int* codes,
-                                        uint8_t* prefix_n,
-                                        bool* has_leaf_left,
-                                        bool* has_leaf_right,
-                                        int* left_child,
-                                        int* parent) {
+__global__ void k_BuildRadixTree(int n /* n_pts */,
+                                 const unsigned int* codes,
+                                 uint8_t* prefix_n,
+                                 bool* has_leaf_left,
+                                 bool* has_leaf_right,
+                                 int* left_child,
+                                 int* parent) {
   const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
   const auto stride = blockDim.x * gridDim.x;
 
@@ -133,17 +134,4 @@ __global__ void k_BuildRadixTree_Kernel(const int n /* n_pts */,
   }
 }
 
-void Dispatch_BuildRadixTree_With(const int n /* n_pts */,
-                                  const unsigned int* codes,
-                                  uint8_t* prefix_n,
-                                  bool* has_leaf_left,
-                                  bool* has_leaf_right,
-                                  int* left_child,
-                                  int* parent,
-                                  // gpu thing
-                                  int logical_num_blocks) {
-  constexpr auto block_size = 768;
-  k_BuildRadixTree_Kernel<<<logical_num_blocks, block_size>>>(
-      n, codes, prefix_n, has_leaf_left, has_leaf_right, left_child, parent);
-}
 }  // namespace gpu

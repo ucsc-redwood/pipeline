@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types/oct.hpp"
+#include "shared/types.h"
 
 void k_MakeOctNodes(OctNode* oct_nodes,
                     const int* node_offsets,    // prefix sum

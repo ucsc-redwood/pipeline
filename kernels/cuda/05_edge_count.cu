@@ -1,11 +1,11 @@
-#include "cuda/kernels/edge_count.cuh"
+#include "cuda/kernels/05_edge_count.cuh"
 
 namespace gpu {
 
-__global__ void k_EdgeCount_Kernel(const uint8_t* prefix_n,
-                                   int* parents,
-                                   int* edge_count,
-                                   int n_brt_nodes) {
+__global__ void k_EdgeCount(const uint8_t* prefix_n,
+                            const int* parents,
+                            int* edge_count,
+                            const int n_brt_nodes) {
   const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
   const auto stride = blockDim.x * gridDim.x;
 

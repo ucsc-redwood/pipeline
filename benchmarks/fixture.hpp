@@ -5,14 +5,14 @@
 
 #include <glm/glm.hpp>
 
-#include "types/brt.hpp"
-#include "types/oct.hpp"
+#include "shared/types.h"
 
 namespace bm = benchmark;
 
 #include "config.hpp"
+#include "execution.hpp"
 #include "kernels/all.hpp"
-#include "kernels/impl/morton.hpp"
+#include "shared/morton.h"
 
 template <typename T>
 [[nodiscard]] T* AllocateHost(const size_t n_items) {
@@ -25,17 +25,21 @@ inline void Free(void* ptr) { free(ptr); }
 // Basically, run the full application one time. The results of each stage will
 // be stored in the fixture. You should treat them as read-only.
 // Put the output to somewhere else
-class MyFixture : public bm::Fixture {
+class CpuFixture : public bm::Fixture {
  public:
-  MyFixture() {
+  CpuFixture() {
     u_input = AllocateHost<glm::vec4>(kN);
     u_morton = AllocateHost<unsigned int>(kN);
 
     k_InitRandomVec4(u_input, kN, kMin, kRange, kRandomSeed);
-    k_ComputeMortonCode(u_input, u_morton, kN, kMin, kRange);
+    // k_ComputeMortonCode(u_input, u_morton, kN, kMin, kRange);
+
+    std::transform(EXE_PAR, u_input, u_input + kN, u_morton, [](const auto& v) {
+      return shared::xyz_to_morton32(v, kMin, kRange);
+    });
 
     // Better sort and unique thank our kernels.
-    std::sort(u_morton, u_morton + kN);
+    std::sort(EXE_PAR, u_morton, u_morton + kN);
     const auto it = std::unique(u_morton, u_morton + kN);
     n_unique = std::distance(u_morton, it);
 
@@ -69,10 +73,10 @@ class MyFixture : public bm::Fixture {
     const auto root_level = tree.prefixN[0] / 3;
     const auto root_prefix = u_morton[0] >> (morton_bits - (3 * root_level));
 
-    cpu::morton32_to_xyz(&u_oct_nodes[0].corner,
-                         root_prefix << (morton_bits - (3 * root_level)),
-                         kMin,
-                         kRange);
+    shared::morton32_to_xyz(&u_oct_nodes[0].corner,
+                            root_prefix << (morton_bits - (3 * root_level)),
+                            kMin,
+                            kRange);
     u_oct_nodes[0].cell_size = kRange;
 
     k_MakeOctNodes(u_oct_nodes,
@@ -109,7 +113,7 @@ class MyFixture : public bm::Fixture {
     u_oct_nodes_out = AllocateHost<OctNode>(num_oct_nodes);
   }
 
-  ~MyFixture() {
+  ~CpuFixture() {
     Free(u_input);
     Free(u_morton);
     Free(tree.prefixN);

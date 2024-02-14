@@ -1,8 +1,8 @@
 #pragma once
 
-#include "common.hpp"
+#include "fixture.hpp"
 
-BENCHMARK_DEFINE_F(MyFixture, BM_PartialSum)(bm::State& st) {
+BENCHMARK_DEFINE_F(CpuFixture, BM_PartialSum)(bm::State& st) {
   const auto num_threads = st.range(0);
   omp_set_num_threads(num_threads);
 
@@ -13,8 +13,8 @@ BENCHMARK_DEFINE_F(MyFixture, BM_PartialSum)(bm::State& st) {
   }
 }
 
-BENCHMARK_REGISTER_F(MyFixture, BM_PartialSum)
+BENCHMARK_REGISTER_F(CpuFixture, BM_PartialSum)
     ->RangeMultiplier(2)
     ->Range(1, 4)
-    ->Unit(benchmark::kMillisecond);
+    ->Unit(bm::kMillisecond);
 

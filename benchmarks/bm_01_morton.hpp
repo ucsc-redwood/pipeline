@@ -1,8 +1,8 @@
 #pragma once
 
-#include "common.hpp"
+#include "fixture.hpp"
 
-BENCHMARK_DEFINE_F(MyFixture, BM_Morton32)(bm::State& st) {
+BENCHMARK_DEFINE_F(CpuFixture, BM_Morton)(bm::State& st) {
   const auto num_threads = st.range(0);
   omp_set_num_threads(num_threads);
 
@@ -11,7 +11,7 @@ BENCHMARK_DEFINE_F(MyFixture, BM_Morton32)(bm::State& st) {
   }
 }
 
-BENCHMARK_REGISTER_F(MyFixture, BM_Morton32)
+BENCHMARK_REGISTER_F(CpuFixture, BM_Morton)
     ->RangeMultiplier(2)
     ->Range(1, 48)
-    ->Unit(benchmark::kMillisecond);
+    ->Unit(bm::kMillisecond);
