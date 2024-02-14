@@ -96,6 +96,9 @@ static void BM_OneSweepSort(bm::State& st) {
 
   std::generate(EXE_PAR, one_sweep.u_sort, one_sweep.u_sort + kN, std::rand);
 
+  st.counters["hist_blocks"] = globalHistThreadblocks(kN);
+  st.counters["bin_blocks"] = binningThreadblocks(kN);
+
   for (auto _ : st) {
     CudaEventTimer timer(st, true);
 
