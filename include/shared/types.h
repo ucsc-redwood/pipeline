@@ -2,6 +2,15 @@
 
 #include <glm/glm.hpp>
 
+struct RadixTreeData {
+  int n_nodes;
+  uint8_t *prefixN;
+  bool *hasLeafLeft;
+  bool *hasLeafRight;
+  int *leftChild;
+  int *parent;
+};
+
 struct OctNode {
   int children[8];
   glm::vec4 corner;

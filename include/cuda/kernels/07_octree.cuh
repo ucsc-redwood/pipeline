@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types/oct.hpp"
+#include "shared/types.h"
 
 namespace gpu {
 

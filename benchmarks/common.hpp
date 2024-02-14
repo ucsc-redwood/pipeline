@@ -5,8 +5,7 @@
 
 #include <glm/glm.hpp>
 
-#include "types/brt.hpp"
-#include "types/oct.hpp"
+#include "shared/types.h"
 
 namespace bm = benchmark;
 

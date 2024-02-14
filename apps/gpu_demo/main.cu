@@ -32,9 +32,6 @@ int main(const int argc, const char** argv) {
 
   omp_set_num_threads(n_threads);
 
-#pragma omp parallel
-  { printf("Hello, world! I'm thread %d\n", omp_get_thread_num()); }
-
   // ---------------------------------------------------------------------------
 
   constexpr auto min = 0.0f;

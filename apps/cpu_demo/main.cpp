@@ -8,7 +8,7 @@
 #include "kernels/02_sort.hpp"
 #include "kernels/all.hpp"
 #include "shared/morton.h"
-#include "types/brt.hpp"
+#include "shared/types.h"
 
 void checkTree(const unsigned int prefix,
                int code_len,
