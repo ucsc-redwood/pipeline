@@ -3,8 +3,6 @@
 
 #include <glm/glm.hpp>
 
-#include "cuda/common/helper_cuda.hpp"
-
 namespace gpu {
 
 // Hybrid LCG-Tausworthe PRNG
@@ -16,14 +14,14 @@ namespace gpu {
 #define LCG_STEP (z4 * 1664525 + 1013904223U)
 #define HYBRID_TAUS (z1 ^ z2 ^ z3 ^ z4)
 
-__device__ __forceinline__ float uintToFloat(const unsigned int x) {
+__device__ __forceinline__ float uint_to_float(const unsigned int x) {
   return static_cast<float>(x & 0xFFFFFF) / 16777216.0f;
 }
 
-__device__ __forceinline__ float uintToFloatScaled(const unsigned int x,
-                                                   const float min,
-                                                   const float range) {
-  return min + uintToFloat(x) * range;
+__device__ __forceinline__ float uint_to_float_scaled(const unsigned int x,
+                                                      const float min,
+                                                      const float range) {
+  return min + uint_to_float(x) * range;
 }
 
 __global__ void k_InitRandomVec4(glm::vec4 *random_vectors,
@@ -44,10 +42,10 @@ __global__ void k_InitRandomVec4(glm::vec4 *random_vectors,
     z3 = TAUS_STEP_3;
     z4 = LCG_STEP;
 
-    random_vectors[i] = glm::vec4(uintToFloatScaled(z1 ^ z2, min, range),
-                                  uintToFloatScaled(z2 ^ z3, min, range),
-                                  uintToFloatScaled(z3 ^ z4, min, range),
-                                  uintToFloatScaled(z1 ^ z4, min, range));
+    random_vectors[i] = glm::vec4(uint_to_float_scaled(z1 ^ z2, min, range),
+                                  uint_to_float_scaled(z2 ^ z3, min, range),
+                                  uint_to_float_scaled(z3 ^ z4, min, range),
+                                  uint_to_float_scaled(z1 ^ z4, min, range));
   }
 }
 

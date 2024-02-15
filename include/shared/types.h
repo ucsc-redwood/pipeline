@@ -39,7 +39,7 @@ struct OctNode {
  *
  */
 
-template <int NUM_PASS>
+template <int NumPass>
 struct OneSweepData {
   /**
    * @brief The number of elements to sort. E.g. 10M
@@ -61,5 +61,5 @@ struct OneSweepData {
    * @brief An array of pointers.
    * Each w/ kRadix * kRadixPasses, e.g. 256 * 4 (Each!)
    */
-  unsigned int *u_pass_histograms[NUM_PASS];
+  unsigned int *u_pass_histograms[NumPass];
 };

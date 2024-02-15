@@ -25,6 +25,6 @@ __global__ void k_LinkLeafNodes(OctNode* nodes,
                                 const uint8_t* rt_prefixN,
                                 const int* rt_parents,
                                 const int* rt_leftChild,
-                                const int N);
+                                int N);
 
 }  // namespace gpu

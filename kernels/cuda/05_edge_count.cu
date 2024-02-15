@@ -1,3 +1,5 @@
+#include <device_launch_parameters.h>
+
 #include "cuda/kernels/05_edge_count.cuh"
 
 namespace gpu {

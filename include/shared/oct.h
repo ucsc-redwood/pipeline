@@ -21,16 +21,16 @@ H_D_I void SetLeaf(OctNode* node,
 }
 
 // processing for index 'i'
-H_D_I void ProcessOctNode(int i,
+H_D_I void ProcessOctNode(const int i,
                           OctNode* oct_nodes,
                           const int* node_offsets,    // prefix sum
                           const int* rt_node_counts,  // edge count
                           const unsigned int* codes,
                           const uint8_t* rt_prefixN,
                           const int* rt_parents,
-                          float min_coord,
-                          float range,
-                          int N  // number of brt nodes
+                          const float min_coord,
+                          const float range,
+                          const int N  // number of brt nodes
 ) {
   auto oct_idx = node_offsets[i];
   const auto n_new_nodes = rt_node_counts[i];
@@ -47,10 +47,10 @@ H_D_I void ProcessOctNode(int i,
 
     SetChild(&oct_nodes[parent], which_child, oct_idx);
 
-    shared::morton32_to_xyz(&oct_nodes[oct_idx].corner,
-                            node_prefix << (morton_bits - (3 * level)),
-                            min_coord,
-                            range);
+    morton32_to_xyz(&oct_nodes[oct_idx].corner,
+                    node_prefix << (morton_bits - (3 * level)),
+                    min_coord,
+                    range);
 
     // each cell is half the size of the level above it
     oct_nodes[oct_idx].cell_size =
@@ -79,10 +79,10 @@ H_D_I void ProcessOctNode(int i,
 
     SetChild(&oct_nodes[oct_parent], which_child, oct_idx);
 
-    shared::morton32_to_xyz(&oct_nodes[oct_idx].corner,
-                            top_node_prefix << (morton_bits - (3 * top_level)),
-                            min_coord,
-                            range);
+    morton32_to_xyz(&oct_nodes[oct_idx].corner,
+                    top_node_prefix << (morton_bits - (3 * top_level)),
+                    min_coord,
+                    range);
 
     oct_nodes[oct_idx].cell_size =
         range / static_cast<float>(1 << (top_level - root_level));

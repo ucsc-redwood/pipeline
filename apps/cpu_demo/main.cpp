@@ -11,7 +11,7 @@
 #include "shared/types.h"
 
 void checkTree(const unsigned int prefix,
-               int code_len,
+               const int code_len,
                const OctNode* nodes,
                const int oct_idx,
                const unsigned int* codes) {

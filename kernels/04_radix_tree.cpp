@@ -36,8 +36,6 @@ int log2_ceil_u32(const unsigned int x) {
   return n_lower_bits + ((1 << n_lower_bits) < x);
 }
 
-using MortonT = unsigned int;
-
 void k_BuildRadixTree(const int n /* n_pts */,
                       const unsigned int* codes,
                       uint8_t* prefix_n,

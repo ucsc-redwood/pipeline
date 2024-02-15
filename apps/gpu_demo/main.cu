@@ -22,12 +22,12 @@ void AllocManaged(T** ptr, const int n) {
   checkCudaErrors(cudaMallocManaged(ptr, n * sizeof(T)));
 }
 
-const int radix = 256;
-const int radixPasses = 4;
-const int partitionSize = 7680;
-const int globalHistPartitionSize = 65536;
-const int globalHistThreads = 128;
-const int binningThreads = 512;  // 2080 super seems to really like 512
+constexpr int radix = 256;
+constexpr int radixPasses = 4;
+constexpr int partitionSize = 7680;
+constexpr int globalHistPartitionSize = 65536;
+constexpr int globalHistThreads = 128;
+constexpr int binningThreads = 512;  // 2080 super seems to really like 512
 
 constexpr int binningThreadblocks(const int size) {
   return (size + partitionSize - 1) / partitionSize;
@@ -62,7 +62,7 @@ void InitMemory(unsigned int* u_index,
 
 void DispatchSortKernels(OneSweepData<4>& one_sweep,
                          const int n,
-                         const auto num_blocks) {
+                         const int num_blocks) {
   spdlog::info(
       "dispatching Histogram... with {} logical blocks, using {} actual blocks",
       globalHistThreadblocks(n),
@@ -161,9 +161,8 @@ int main(const int argc, const char** argv) {
   AllocManaged(&one_sweep.u_sort_alt, n);
   AllocManaged(&one_sweep.u_global_histogram, radix * radixPasses);
   AllocManaged(&one_sweep.u_index, radixPasses);
-  for (int i = 0; i < radixPasses; ++i) {
-    AllocManaged(&one_sweep.u_pass_histograms[i],
-                 radix * binningThreadblocks(n));
+  for (auto& u_pass_histogram : one_sweep.u_pass_histograms) {
+    AllocManaged(&u_pass_histogram, radix * binningThreadblocks(n));
   }
 
   {
@@ -231,7 +230,7 @@ int main(const int argc, const char** argv) {
 
   unsigned int* u_temp_sort;
   checkCudaErrors(cudaMallocManaged(&u_temp_sort, n * sizeof(unsigned int)));
-  std::copy(one_sweep.u_sort, one_sweep.u_sort + n, u_temp_sort);
+  std::copy_n(one_sweep.u_sort, n, u_temp_sort);
 
   gpu::k_CountUnique<<<1, 1>>>(u_temp_sort, num_unique_out, n);
   checkCudaErrors(cudaDeviceSynchronize());
@@ -289,7 +288,7 @@ int main(const int argc, const char** argv) {
   // ---------------------------------------------------------------------------
   // Edge Count & Prefix Sum
 
-  auto u_edge_count = AllocManaged<int>(tree.n_nodes);
+  const auto u_edge_count = AllocManaged<int>(tree.n_nodes);
 
   gpu::k_EdgeCount<<<my_num_blocks, 768>>>(
       tree.prefixN, tree.parent, u_edge_count, tree.n_nodes);
@@ -374,8 +373,8 @@ int main(const int argc, const char** argv) {
   checkCudaErrors(cudaFree(one_sweep.u_sort_alt));
   checkCudaErrors(cudaFree(one_sweep.u_global_histogram));
   checkCudaErrors(cudaFree(one_sweep.u_index));
-  for (int i = 0; i < radixPasses; ++i) {
-    checkCudaErrors(cudaFree(one_sweep.u_pass_histograms[i]));
+  for (const auto& u_pass_histogram : one_sweep.u_pass_histograms) {
+    checkCudaErrors(cudaFree(u_pass_histogram));
   }
 
   // Radix Tree

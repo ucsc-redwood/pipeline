@@ -1,11 +1,11 @@
+#include <device_launch_parameters.h>
+
 namespace gpu {
 
 __global__ void k_CountUnique(unsigned int* keys,
                               int* num_unique_out,
                               const int n) {
-  const auto tid = threadIdx.x + blockIdx.x * blockDim.x;
-
-  if (tid == 0) {
+  if (const auto tid = threadIdx.x + blockIdx.x * blockDim.x; tid == 0) {
     if (n == 0) {
       *num_unique_out = 0;
       return;
@@ -20,7 +20,6 @@ __global__ void k_CountUnique(unsigned int* keys,
     }
 
     *num_unique_out = j + 1;
-    return;
   }
 }
 

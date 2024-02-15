@@ -7,30 +7,29 @@
 #include "bm_07_octree.cuh"
 
 int main(int argc, char** argv) {
-  int deviceCount;
-  cudaGetDeviceCount(&deviceCount);
+  int device_count;
+  cudaGetDeviceCount(&device_count);
 
   cudaSetDevice(0);
 
-  for (int deviceId = 0; deviceId < deviceCount; ++deviceId) {
-    cudaDeviceProp deviceProp;
-    cudaGetDeviceProperties(&deviceProp, deviceId);
+  for (auto device_id = 0; device_id < device_count; ++device_id) {
+    cudaDeviceProp device_prop;
+    cudaGetDeviceProperties(&device_prop, device_id);
 
-    std::cout << "Device ID: " << deviceId << std::endl;
-    std::cout << "Device name: " << deviceProp.name << std::endl;
-    std::cout << "Compute capability: " << deviceProp.major << "."
-              << deviceProp.minor << std::endl;
+    std::cout << "Device ID: " << device_id << '\n';
+    std::cout << "Device name: " << device_prop.name << '\n';
+    std::cout << "Compute capability: " << device_prop.major << "."
+              << device_prop.minor << '\n';
     std::cout << "Total global memory: "
-              << deviceProp.totalGlobalMem / (1024 * 1024) << " MB"
-              << std::endl;
-    std::cout << "Number of multiprocessors: " << deviceProp.multiProcessorCount
-              << std::endl;
-    std::cout << "Max threads per block: " << deviceProp.maxThreadsPerBlock
-              << std::endl;
+              << device_prop.totalGlobalMem / (1024 * 1024) << " MB" << '\n';
+    std::cout << "Number of multiprocessors: "
+              << device_prop.multiProcessorCount << '\n';
+    std::cout << "Max threads per block: " << device_prop.maxThreadsPerBlock
+              << '\n';
     std::cout << "Max threads per multiprocessor: "
-              << deviceProp.maxThreadsPerMultiProcessor << std::endl;
-    std::cout << "Warp size: " << deviceProp.warpSize << std::endl;
-    std::cout << std::endl;
+              << device_prop.maxThreadsPerMultiProcessor << '\n';
+    std::cout << "Warp size: " << device_prop.warpSize << '\n';
+    std::cout << '\n';
   }
 
   bm::Initialize(&argc, argv);
