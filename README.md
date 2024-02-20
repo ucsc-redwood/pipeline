@@ -3,7 +3,10 @@
 ## Instructions
 
 ```bash
-xmake
+# Build
+xmake -j8
 ...
-xmake r -w . app
+xmake r benchmark
+# or 
+xmake r benchmark_gpu
 ```
