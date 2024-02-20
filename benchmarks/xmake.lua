@@ -7,5 +7,8 @@ target("benchmark")
     add_files("benchmark.cpp")
     add_packages("benchmark", "glm", "openmp", "tbb")
     add_deps("kernels")
+target_end()
 
-includes("cuda")
+if has_package("cuda") then
+    includes("cuda")
+end 
