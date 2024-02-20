@@ -9,6 +9,6 @@ target("benchmark")
     add_deps("kernels")
 target_end()
 
-if has_package("cuda") then
+-- if has_package("cuda") then
     includes("cuda")
-end 
+-- end 

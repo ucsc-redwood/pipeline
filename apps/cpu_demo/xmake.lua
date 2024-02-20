@@ -1,6 +1,6 @@
 target("cpu_demo")
     set_kind("binary")
-    add_includedirs("../../include")
+    add_includedirs("$(projectdir)/include")
     add_headerfiles("../../include/**/*")
     add_files("main.cpp")
     add_packages("cli11", "spdlog", "openmp", "glm")

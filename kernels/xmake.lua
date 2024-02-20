@@ -8,6 +8,6 @@ target("kernels")
     add_packages("openmp", "glm")
 target_end()
 
-if has_package("cuda") then
+-- if has_package("cuda") then
     includes("cuda")
-end 
+-- end 
