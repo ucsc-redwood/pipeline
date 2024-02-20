@@ -2,7 +2,7 @@ for _, file in ipairs(os.files("test_*.cpp")) do
     local name = path.basename(file)
     target(name)
     set_kind("binary")
-    add_includedirs("../include")
+    add_includedirs("$(projectdir)/include")
     add_files(name .. ".cpp")
     add_deps("kernels")
     add_packages("openmp")
