@@ -6,5 +6,8 @@ target("kernels")
     add_headerfiles("../include/**/*")
     add_files("./*.cpp")
     add_packages("openmp", "glm")
+target_end()
 
-includes("cuda")
+if has_package("cuda") then
+    includes("cuda")
+end 
