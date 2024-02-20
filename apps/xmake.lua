@@ -4,4 +4,5 @@ includes("cpu_demo")
 
 if has_package("cuda") then
     includes("gpu_demo")
+    includes("ppl")
 end
