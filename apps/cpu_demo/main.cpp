@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <glm/glm.hpp>
 
-#include "kernels/02_sort.hpp"
 #include "kernels/all.hpp"
 #include "shared/morton.h"
 #include "shared/types.h"
