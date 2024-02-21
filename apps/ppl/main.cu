@@ -23,6 +23,8 @@ void k_StdSort(unsigned int* u_data, const int n) {
   std::sort(u_data, u_data + n);
 }
 
+}  // namespace
+
 // Baseline CPU implementation
 void run_cpu_pass(Pipe* pipe, AppParams& params) {
   ++params.seed;
@@ -41,7 +43,7 @@ void run_cpu_pass(Pipe* pipe, AppParams& params) {
 }
 
 // Baseline GPU implementation
-void run_gpu_pass(Pipe* pipe, AppParams& params) {
+void run_gpu_pass(Pipe* pipe, AppParams& params, const cudaStream_t& stream) {
   ++params.seed;
 
   // Init
@@ -49,9 +51,8 @@ void run_gpu_pass(Pipe* pipe, AppParams& params) {
     constexpr auto num_threads = 768;
     constexpr auto seed = 114514;
     const auto grid_size = (params.n + num_threads - 1) / num_threads;
-    gpu::k_InitRandomVec4<<<grid_size, num_threads>>>(
+    gpu::k_InitRandomVec4<<<grid_size, num_threads, 0, stream>>>(
         pipe->u_points, params.n, params.min, params.range, params.seed);
-    // checkCudaErrors(cudaDeviceSynchronize());
   }
 
   // ---------------------------------------------------------------------------
@@ -60,37 +61,14 @@ void run_gpu_pass(Pipe* pipe, AppParams& params) {
   {
     constexpr auto num_threads = 768;
 
-    // int blockSize = 1;
-    // int minGridSize = 1;
-    // checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
-    //     &minGridSize, &blockSize, gpu::k_ComputeMortonCode));
-    // spdlog::info("**** blockSize = {}", blockSize);
-
-    gpu::k_ComputeMortonCode<<<params.my_num_blocks, num_threads>>>(
+    gpu::k_ComputeMortonCode<<<params.my_num_blocks, num_threads, 0, stream>>>(
         pipe->u_points,
         pipe->one_sweep.u_sort,
         params.n,
         params.min,
         params.range);
-    // checkCudaErrors(cudaDeviceSynchronize());
   }
-
-  // gpu::k_InitRandomVec4(
-  //     pipe->u_points, params.n, params.min, params.range, params.seed);
-
-  // gpu::k_ComputeMortonCode(pipe->u_points,
-  //                          pipe->one_sweep.u_sort,
-  //                          params.n,
-  //                          params.min,
-  //                          params.range);
-
-  // gpu::
-  //     // k_SimpleRadixSort(pipe->one_sweep.u_sort, params.n);
-
-  //     k_Unique(&pipe->n_unique, pipe->one_sweep.u_sort, params.n);
 }
-
-}  // namespace
 
 int main(const int argc, const char* argv[]) {
   constexpr auto n = 1920 * 1080;  // 2.0736M
@@ -113,8 +91,6 @@ int main(const int argc, const char* argv[]) {
 
   omp_set_num_threads(n_threads);
 
-  auto pipe_ptr = std::make_unique<Pipe>(n);
-
   AppParams params{
       .n = n,
       .min = 0.0f,
@@ -126,14 +102,49 @@ int main(const int argc, const char* argv[]) {
 
   constexpr auto n_frames = 100;
 
+  constexpr auto n_streams = 2;
+
+  std::array<cudaStream_t, n_streams> streams;
+  for (auto i = 0; i < n_streams; ++i) {
+    checkCudaErrors(cudaStreamCreate(&streams[i]));
+  }
+
+  // error: no default constructor exists for class "Pipe"
+  // std::unique_ptr<Pipe[]> pipes(new Pipe[n_streams]{n});
+  // std::array<Pipe, n_streams> pipes{n};
+
+  std::array<Pipe, n_streams> pipes{Pipe(n), Pipe(n)};
+
+  // cudaStreamAttachMemAsync
+
+  for (auto i = 0; i < n_streams; ++i) {
+    checkCudaErrors(cudaStreamAttachMemAsync(
+        streams[i], pipes[i].u_points, 0, cudaMemAttachSingle));
+    checkCudaErrors(cudaStreamAttachMemAsync(
+        streams[i], pipes[i].one_sweep.u_sort, 0, cudaMemAttachSingle));
+    checkCudaErrors(cudaStreamAttachMemAsync(
+        streams[i], pipes[i].one_sweep.u_sort_alt, 0, cudaMemAttachSingle));
+    checkCudaErrors(
+        cudaStreamAttachMemAsync(streams[i],
+                                 pipes[i].one_sweep.u_global_histogram,
+                                 0,
+                                 cudaMemAttachSingle));
+    checkCudaErrors(cudaStreamAttachMemAsync(
+        streams[i], pipes[i].one_sweep.u_index, 0, cudaMemAttachSingle));
+    for (int j = 0; j < 4; j++) {
+      checkCudaErrors(
+          cudaStreamAttachMemAsync(streams[i],
+                                   pipes[i].one_sweep.u_pass_histograms[j],
+                                   0,
+                                   cudaMemAttachSingle));
+    }
+  }
+
   // need to compute the frame rate of this loop
   auto start = std::chrono::steady_clock::now();
 
   for (auto i = 0; i < n_frames; ++i) {
-    run_gpu_pass(pipe_ptr.get(), params);
-
-    // spdlog::info(
-    // "[{}/{}] Unique: {}/{}", i, n_frames, pipe_ptr->n_unique, params.n);
+    run_gpu_pass(&pipes[i % n_streams], params, streams[i % n_streams]);
     spdlog::info("[{}/{}] ", i, n_frames);
   }
   checkCudaErrors(cudaDeviceSynchronize());
@@ -147,6 +158,10 @@ int main(const int argc, const char* argv[]) {
 
   spdlog::info("Elapsed time: {} ms", elapsed_ms);
   spdlog::info("FPS: {}", fps);
+
+  for (auto i = 0; i < n_streams; ++i) {
+    checkCudaErrors(cudaStreamDestroy(streams[i]));
+  }
 
   return 0;
 }
