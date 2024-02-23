@@ -109,7 +109,7 @@ void DispatchSortKernels(OneSweepData<4>& one_sweep,
       one_sweep.u_sort_alt,
       one_sweep.u_pass_histograms[2],
       one_sweep.u_index,
-      n,r
+      n,
       16,
       binningThreadblocks(n));
 
@@ -128,7 +128,8 @@ int main(const int argc, const char** argv) {
   int n = 10'000'000;
   int n_threads = 4;
   int my_num_blocks = 64;
-  r};
+
+  CLI::App app{"GPU Sorting Demo"};
 
   app.add_option("-n,--n", n, "Number of elements to sort")
       ->check(CLI::PositiveNumber);
