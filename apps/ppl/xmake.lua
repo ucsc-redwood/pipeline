@@ -1,3 +1,6 @@
+
+add_requires("openmp")
+
 target("ppl")
     set_kind("binary")
     add_includedirs("$(projectdir)/include")

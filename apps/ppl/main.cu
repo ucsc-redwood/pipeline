@@ -5,19 +5,13 @@
 #include <chrono>
 #include <iostream>
 
-#include "cuda/kernels/all.cuh"
+#include "app_params.hpp"
+#include "gpu_kernels.cuh"
 #include "kernels/all.hpp"
 #include "pipe.cuh"
 #include "shared/types.h"
 
 namespace {
-
-struct AppParams {
-  int n;
-  float min, max, range;
-  int seed;
-  int my_num_blocks;
-};
 
 void k_StdSort(unsigned int* u_data, const int n) {
   std::sort(u_data, u_data + n);
@@ -25,55 +19,11 @@ void k_StdSort(unsigned int* u_data, const int n) {
 
 }  // namespace
 
-// Baseline CPU implementation
-void run_cpu_pass(Pipe* pipe, AppParams& params) {
-  ++params.seed;
-  k_InitRandomVec4(
-      pipe->u_points, params.n, params.min, params.range, params.seed);
-
-  k_ComputeMortonCode(pipe->u_points,
-                      pipe->one_sweep.u_sort,
-                      params.n,
-                      params.min,
-                      params.range);
-
-  k_SimpleRadixSort(pipe->one_sweep.u_sort, params.n);
-
-  k_Unique(&pipe->n_unique, pipe->one_sweep.u_sort, params.n);
-}
-
-// Baseline GPU implementation
-void run_gpu_pass(Pipe* pipe, AppParams& params, const cudaStream_t& stream) {
-  ++params.seed;
-
-  // Init
-  {
-    constexpr auto num_threads = 768;
-    constexpr auto seed = 114514;
-    const auto grid_size = (params.n + num_threads - 1) / num_threads;
-    gpu::k_InitRandomVec4<<<grid_size, num_threads, 0, stream>>>(
-        pipe->u_points, params.n, params.min, params.range, params.seed);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Morton Code
-
-  {
-    constexpr auto num_threads = 768;
-
-    gpu::k_ComputeMortonCode<<<params.my_num_blocks, num_threads, 0, stream>>>(
-        pipe->u_points,
-        pipe->one_sweep.u_sort,
-        params.n,
-        params.min,
-        params.range);
-  }
-}
-
 int main(const int argc, const char* argv[]) {
   constexpr auto n = 1920 * 1080;  // 2.0736M
   int n_threads = 4;
   int my_num_blocks = 64;
+  bool debug_print = false;
 
   CLI::App app{"Multi-threaded sorting benchmark"};
 
@@ -83,13 +33,23 @@ int main(const int argc, const char* argv[]) {
   app.add_option("-b,--blocks", my_num_blocks, "Number of blocks to use")
       ->check(CLI::PositiveNumber);
 
+  app.add_flag("-d,--debug", debug_print, "Print debug information");
+
   CLI11_PARSE(app, argc, argv)
 
   spdlog::info("n = {}", n);
   spdlog::info("n_threads = {}", n_threads);
   spdlog::info("my_num_blocks = {}", my_num_blocks);
 
+  // set log level to debug
+  if (debug_print) {
+    spdlog::set_level(spdlog::level::debug);
+  }
+
   omp_set_num_threads(n_threads);
+
+#pragma omp parallel
+  { printf("Hello from thread %d\n", omp_get_thread_num()); }
 
   AppParams params{
       .n = n,
@@ -100,68 +60,52 @@ int main(const int argc, const char* argv[]) {
       .my_num_blocks = my_num_blocks,
   };
 
-  constexpr auto n_frames = 100;
+  // spdlog all params in one line
+  spdlog::info(
+      "params: n={}, min={}, max={}, range={}, seed={}, my_num_blocks={}",
+      params.n,
+      params.min,
+      params.max,
+      params.range,
+      params.seed,
+      params.my_num_blocks);
 
-  constexpr auto n_streams = 2;
+  glm::vec4* u_points;
+  cudaMallocManaged(&u_points, n * sizeof(glm::vec4));
 
-  std::array<cudaStream_t, n_streams> streams;
-  for (auto i = 0; i < n_streams; ++i) {
-    checkCudaErrors(cudaStreamCreate(&streams[i]));
-  }
+  cudaStream_t stream;
+  cudaStreamCreate(&stream);
 
-  // error: no default constructor exists for class "Pipe"
-  // std::unique_ptr<Pipe[]> pipes(new Pipe[n_streams]{n});
-  // std::array<Pipe, n_streams> pipes{n};
+  auto one_sweep = gpu::OneSweepHelper::CreateOnesweepData(n);
+  gpu::OneSweepHelper::AttachOnesweepStream(one_sweep, stream);
 
-  std::array<Pipe, n_streams> pipes{Pipe(n), Pipe(n)};
+  int* num_unique_out;
+  cudaMallocManaged(&num_unique_out, sizeof(int));
 
-  // cudaStreamAttachMemAsync
+  // -----------------------------------------------------------------------
 
-  for (auto i = 0; i < n_streams; ++i) {
-    checkCudaErrors(cudaStreamAttachMemAsync(
-        streams[i], pipes[i].u_points, 0, cudaMemAttachSingle));
-    checkCudaErrors(cudaStreamAttachMemAsync(
-        streams[i], pipes[i].one_sweep.u_sort, 0, cudaMemAttachSingle));
-    checkCudaErrors(cudaStreamAttachMemAsync(
-        streams[i], pipes[i].one_sweep.u_sort_alt, 0, cudaMemAttachSingle));
-    checkCudaErrors(
-        cudaStreamAttachMemAsync(streams[i],
-                                 pipes[i].one_sweep.u_global_histogram,
-                                 0,
-                                 cudaMemAttachSingle));
-    checkCudaErrors(cudaStreamAttachMemAsync(
-        streams[i], pipes[i].one_sweep.u_index, 0, cudaMemAttachSingle));
-    for (int j = 0; j < 4; j++) {
-      checkCudaErrors(
-          cudaStreamAttachMemAsync(streams[i],
-                                   pipes[i].one_sweep.u_pass_histograms[j],
-                                   0,
-                                   cudaMemAttachSingle));
-    }
-  }
+  gpu::Disptach_InitRandomVec4(u_points, params, params.my_num_blocks, stream);
 
-  // need to compute the frame rate of this loop
-  auto start = std::chrono::steady_clock::now();
+  gpu::Dispatch_MortonCompute(
+      u_points, one_sweep.u_sort, params, params.my_num_blocks, stream);
 
-  for (auto i = 0; i < n_frames; ++i) {
-    run_gpu_pass(&pipes[i % n_streams], params, streams[i % n_streams]);
-    spdlog::info("[{}/{}] ", i, n_frames);
-  }
-  checkCudaErrors(cudaDeviceSynchronize());
+  gpu::Dispatch_SortKernels(one_sweep, n, params.my_num_blocks, stream);
 
-  auto end = std::chrono::steady_clock::now();
+  gpu::Dispatch_CountUnique(
+      one_sweep.u_sort, num_unique_out, n, params.my_num_blocks, stream);
 
-  auto elapsed_ms =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
-          .count();
-  double fps = static_cast<double>(n_frames) / (elapsed_ms / 1000.0);
+  cudaDeviceSynchronize();
 
-  spdlog::info("Elapsed time: {} ms", elapsed_ms);
-  spdlog::info("FPS: {}", fps);
+  // -----------------------------------------------------------------------
 
-  for (auto i = 0; i < n_streams; ++i) {
-    checkCudaErrors(cudaStreamDestroy(streams[i]));
-  }
+  auto is_sorted = std::is_sorted(one_sweep.u_sort, one_sweep.u_sort + n);
+
+  spdlog::info("is_sorted = {}", is_sorted);
+
+  cudaFree(u_points);
+  gpu::OneSweepHelper::DestroyOnesweepData(one_sweep);
+
+  cudaStreamDestroy(stream);
 
   return 0;
 }

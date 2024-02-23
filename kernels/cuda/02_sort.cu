@@ -49,7 +49,7 @@ namespace gpu {
 #define FOURTH_RADIX_START 768
 
 // For the upfront global histogram kernel
-#define G_HIST_PART_SIZE 65536
+#define G_HIST_PART_SIZE 65536 // 
 #define G_HIST_VEC_SIZE 16384
 
 // For the digit binning

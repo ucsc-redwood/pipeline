@@ -59,7 +59,7 @@ struct OneSweepData {
 
   /**
    * @brief An array of pointers.
-   * Each w/ kRadix * kRadixPasses, e.g. 256 * 4 (Each!)
+   * Each w/ kRadix * kRadixPasses, e.g. 256 * binningThreadblocks? (Each!) 
    */
   unsigned int *u_pass_histograms[NumPass];
 };
