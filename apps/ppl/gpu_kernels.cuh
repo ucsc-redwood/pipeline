@@ -43,44 +43,44 @@ void Dispatch_MortonCompute(const glm::vec4* u_points,
 // Onesweep Sort
 // ---------------------------------------------------------------------------
 
-namespace sort {
+// namespace sort {
 
-constexpr int radix = 256;
-constexpr int radixPasses = 4;
+// constexpr int radix = 256;
+// constexpr int radixPasses = 4;
 
-constexpr int binningThreadblocks(const int size) {
-  // Need to match to the numbers in the '.cu' file in gpu source code
-  constexpr int partitionSize = 7680;
-  return (size + partitionSize - 1) / partitionSize;
-}
+// }  // namespace sort
 
-constexpr int globalHistThreadblocks(const int size) {
-  // Need to match to the numbers in the '.cu' file in gpu source code
-  constexpr int globalHistPartitionSize = 65536;
-  return (size + globalHistPartitionSize - 1) / globalHistPartitionSize;
-}
-
-}  // namespace sort
-
+template <int Radix, int RadixPass>
 class OneSweepHelper {
  public:
-  static OneSweepData<sort::radixPasses> CreateOnesweepData(const int n) {
-    OneSweepData<sort::radixPasses> one_sweep;
+  static constexpr int binningThreadblocks(const int size) {
+    // Need to match to the numbers in the '.cu' file in gpu source code
+    constexpr int partitionSize = 7680;
+    return (size + partitionSize - 1) / partitionSize;
+  }
+
+  static constexpr int globalHistThreadblocks(const int size) {
+    // Need to match to the numbers in the '.cu' file in gpu source code
+    constexpr int globalHistPartitionSize = 65536;
+    return (size + globalHistPartitionSize - 1) / globalHistPartitionSize;
+  }
+
+  static OneSweepData<RadixPass> CreateOnesweepData(const int n) {
+    OneSweepData<RadixPass> one_sweep;
     cudaMallocManaged(&one_sweep.u_sort, n * sizeof(unsigned int));
     cudaMallocManaged(&one_sweep.u_sort_alt, n * sizeof(unsigned int));
-    cudaMallocManaged(&one_sweep.u_index,
-                      sort::radixPasses * sizeof(unsigned int));
+    cudaMallocManaged(&one_sweep.u_index, RadixPass * sizeof(unsigned int));
     cudaMallocManaged(&one_sweep.u_global_histogram,
-                      sort::radix * sort::radixPasses * sizeof(unsigned int));
-    for (int i = 0; i < sort::radixPasses; i++) {
+                      Radix * RadixPass * sizeof(unsigned int));
+    for (int i = 0; i < RadixPass; i++) {
       cudaMallocManaged(
           &one_sweep.u_pass_histograms[i],
-          sort::radix * sort::binningThreadblocks(n) * sizeof(unsigned int));
+          Radix * sort::binningThreadblocks(n) * sizeof(unsigned int));
     }
     return one_sweep;
   }
 
-  static void AttachOnesweepStream(OneSweepData<sort::radixPasses>& one_sweep,
+  static void AttachOnesweepStream(OneSweepData<RadixPass>& one_sweep,
                                    const cudaStream_t& stream) {
     cudaStreamAttachMemAsync(stream, one_sweep.u_sort, 0, cudaMemAttachSingle);
     cudaStreamAttachMemAsync(
@@ -88,18 +88,18 @@ class OneSweepHelper {
     cudaStreamAttachMemAsync(stream, one_sweep.u_index, 0, cudaMemAttachSingle);
     cudaStreamAttachMemAsync(
         stream, one_sweep.u_global_histogram, 0, cudaMemAttachSingle);
-    for (int i = 0; i < sort::radixPasses; i++) {
+    for (int i = 0; i < RadixPass; i++) {
       cudaStreamAttachMemAsync(
           stream, one_sweep.u_pass_histograms[i], 0, cudaMemAttachSingle);
     }
   }
 
-  static void DestroyOnesweepData(OneSweepData<sort::radixPasses>& one_sweep) {
+  static void DestroyOnesweepData(OneSweepData<RadixPass>& one_sweep) {
     cudaFree(one_sweep.u_sort);
     cudaFree(one_sweep.u_sort_alt);
     cudaFree(one_sweep.u_index);
     cudaFree(one_sweep.u_global_histogram);
-    for (int i = 0; i < sort::radixPasses; i++) {
+    for (int i = 0; i < RadixPass; i++) {
       cudaFree(one_sweep.u_pass_histograms[i]);
     }
   }
@@ -187,7 +187,5 @@ void Dispatch_CountUnique(unsigned int* keys,
   gpu::k_CountUnique<<<grid_size, block_size, 0, stream>>>(
       keys, num_unique_out, n);
 }
-
-
 
 }  // namespace gpu

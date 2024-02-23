@@ -93,6 +93,9 @@ int main(const int argc, const char* argv[]) {
 
   gpu::Dispatch_CountUnique(
       one_sweep.u_sort, num_unique_out, n, params.my_num_blocks, stream);
+  
+  
+
 
   cudaDeviceSynchronize();
 

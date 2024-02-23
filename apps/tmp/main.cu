@@ -1,70 +1,29 @@
 #include <algorithm>
 #include <iostream>
 
-// #include "gpu_kernels.cuh"
-// #include "kernels/all.hpp"
+#include "cuda/kernels/02_sort.cuh"
+#include "data_packs.cuh"
 
-#include "cuda/kernels/all.cuh"
-#include "shared/types.h"
-
-namespace sort {
-
-constexpr int radix = 256;
-constexpr int radixPasses = 4;
-
-constexpr int binningThreadblocks(const int size) {
-  // Need to match to the numbers in the '.cu' file in gpu source code
-  constexpr int partitionSize = 7680;
-  return (size + partitionSize - 1) / partitionSize;
-}
-
-constexpr int globalHistThreadblocks(const int size) {
-  // Need to match to the numbers in the '.cu' file in gpu source code
-  constexpr int globalHistPartitionSize = 65536;
-  return (size + globalHistPartitionSize - 1) / globalHistPartitionSize;
-}
-
-}  // namespace sort
-
-static OneSweepData<sort::radixPasses> CreateOnesweepData(const int n) {
-  OneSweepData<sort::radixPasses> one_sweep;
-  cudaMallocManaged(&one_sweep.u_sort, n * sizeof(unsigned int));
-  cudaMallocManaged(&one_sweep.u_sort_alt, n * sizeof(unsigned int));
-  cudaMallocManaged(&one_sweep.u_index,
-                    sort::radixPasses * sizeof(unsigned int));
-  cudaMallocManaged(&one_sweep.u_global_histogram,
-                    sort::radix * sort::radixPasses * sizeof(unsigned int));
-  for (int i = 0; i < sort::radixPasses; i++) {
-    cudaMallocManaged(
-        &one_sweep.u_pass_histograms[i],
-        sort::radix * sort::binningThreadblocks(n) * sizeof(unsigned int));
-  }
-  return one_sweep;
-}
-
-static void DestroyOnesweepData(OneSweepData<sort::radixPasses>& one_sweep) {
-  cudaFree(one_sweep.u_sort);
-  cudaFree(one_sweep.u_sort_alt);
-  cudaFree(one_sweep.u_index);
-  cudaFree(one_sweep.u_global_histogram);
-  for (int i = 0; i < sort::radixPasses; i++) {
-    cudaFree(one_sweep.u_pass_histograms[i]);
-  }
-}
-
-static void Dispatch_SortKernels(OneSweepData<4>& one_sweep,
+inline void Dispatch_SortKernels(OneSweep& one_sweep,
                                  const int n,
-                                 const int grid_size) {
+                                 const int grid_size,
+                                 const cudaStream_t& stream) {
   constexpr int globalHistThreads = 128;
   constexpr int binningThreads = 512;
 
-  gpu::k_GlobalHistogram_WithLogicalBlocks<<<grid_size, globalHistThreads>>>(
+  gpu::k_GlobalHistogram_WithLogicalBlocks<<<grid_size,
+                                             globalHistThreads,
+                                             0,
+                                             stream>>>(
       one_sweep.u_sort,
       one_sweep.u_global_histogram,
       n,
-      sort::globalHistThreadblocks(n));
+      OneSweep::globalHistThreadblocks(n));
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size, binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size,
+                                          binningThreads,
+                                          0,
+                                          stream>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort,
       one_sweep.u_sort_alt,
@@ -72,9 +31,12 @@ static void Dispatch_SortKernels(OneSweepData<4>& one_sweep,
       one_sweep.u_index,
       n,
       0,
-      sort::binningThreadblocks(n));
+      OneSweep::binningThreadblocks(n));
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size, binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size,
+                                          binningThreads,
+                                          0,
+                                          stream>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort_alt,
       one_sweep.u_sort,
@@ -82,9 +44,12 @@ static void Dispatch_SortKernels(OneSweepData<4>& one_sweep,
       one_sweep.u_index,
       n,
       8,
-      sort::binningThreadblocks(n));
+      OneSweep::binningThreadblocks(n));
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size, binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size,
+                                          binningThreads,
+                                          0,
+                                          stream>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort,
       one_sweep.u_sort_alt,
@@ -92,9 +57,12 @@ static void Dispatch_SortKernels(OneSweepData<4>& one_sweep,
       one_sweep.u_index,
       n,
       16,
-      sort::binningThreadblocks(n));
+      OneSweep::binningThreadblocks(n));
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size, binningThreads>>>(
+  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size,
+                                          binningThreads,
+                                          0,
+                                          stream>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort_alt,
       one_sweep.u_sort,
@@ -102,7 +70,7 @@ static void Dispatch_SortKernels(OneSweepData<4>& one_sweep,
       one_sweep.u_index,
       n,
       24,
-      sort::binningThreadblocks(n));
+      OneSweep::binningThreadblocks(n));
 }
 
 int main(const int argc, const char* argv[]) {
@@ -116,37 +84,27 @@ int main(const int argc, const char* argv[]) {
 
   std::cout << "Grid size: " << grid_size << std::endl;
 
-  OneSweepData<4> one_sweep;
-  cudaMallocManaged(&one_sweep.u_sort, n * sizeof(unsigned int));
-  cudaMallocManaged(&one_sweep.u_sort_alt, n * sizeof(unsigned int));
-  cudaMallocManaged(&one_sweep.u_index,
-                    sort::radixPasses * sizeof(unsigned int));
-  cudaMallocManaged(&one_sweep.u_global_histogram,
-                    sort::radix * sort::radixPasses * sizeof(unsigned int));
-  for (int i = 0; i < 4; i++) {
-    cudaMallocManaged(
-        &one_sweep.u_pass_histograms[i],
-        sort::radix * sort::binningThreadblocks(n) * sizeof(unsigned int));
-  }
+  // -----------------------------------------------------------------------------
 
-  std::generate_n(one_sweep.u_sort, n, [n = n]() mutable { return --n; });
+  cudaStream_t stream;
+  cudaStreamCreate(&stream);
 
-  auto is_sorted = std::is_sorted(one_sweep.u_sort, one_sweep.u_sort + n);
+  OneSweep one_sweep(n);
+  one_sweep.attachStream(stream);
+
+  std::generate_n(one_sweep.getSort(), n, [n = n]() mutable { return --n; });
+
+  auto is_sorted = std::is_sorted(one_sweep.getSort(), one_sweep.getSort() + n);
   std::cout << "Is sorted: " << std::boolalpha << is_sorted << std::endl;
 
-  Dispatch_SortKernels(one_sweep, n, grid_size);
+  Dispatch_SortKernels(one_sweep, n, grid_size, stream);
+
   cudaDeviceSynchronize();
 
-  is_sorted = std::is_sorted(one_sweep.u_sort, one_sweep.u_sort + n);
-  std::cout << "Is sorted: " << std::boolalpha << is_sorted << std::endl;
+  // -----------------------------------------------------------------------------
 
-  cudaFree(one_sweep.u_sort);
-  cudaFree(one_sweep.u_sort_alt);
-  cudaFree(one_sweep.u_index);
-  cudaFree(one_sweep.u_global_histogram);
-  for (int i = 0; i < 4; i++) {
-    cudaFree(one_sweep.u_pass_histograms[i]);
-  }
+  is_sorted = std::is_sorted(one_sweep.getSort(), one_sweep.getSort() + n);
+  std::cout << "Is sorted: " << std::boolalpha << is_sorted << std::endl;
 
   return 0;
 }
