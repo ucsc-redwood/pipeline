@@ -106,8 +106,8 @@ int main(const int argc, const char* argv[]) {
   //   spdlog::info("u_sort[{}] = {}", i, one_sweep.getSort()[i]);
   // }
 
-  // auto is_sorted = std::is_sorted(one_sweep.getSort(), one_sweep.getSort() + n);
-  // spdlog::info("is_sorted = {}", is_sorted);
+  // auto is_sorted = std::is_sorted(one_sweep.getSort(), one_sweep.getSort() +
+  // n); spdlog::info("is_sorted = {}", is_sorted);
 
   // find where it was not sorted
   if (!is_sorted) {
