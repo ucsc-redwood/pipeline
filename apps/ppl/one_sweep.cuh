@@ -2,6 +2,7 @@
 
 // Fixed for 4 passes, 256 radix
 // This is what we care, no need to generalize it
+namespace {
 
 template <typename T>
 constexpr void MallocManaged(T** ptr, size_t num_items) {
@@ -9,10 +10,11 @@ constexpr void MallocManaged(T** ptr, size_t num_items) {
 }
 
 #define AttachStreamSingle(ptr) \
-  cudaStreamAttachMemAsync(ptr, 0, cudaMemAttachSingle)
+  cudaStreamAttachMemAsync(stream, ptr, 0, cudaMemAttachSingle)
 
-class OneSweep {
- public:
+}  // namespace
+
+struct OneSweep {
   explicit OneSweep(const int n) : n(n) {
     MallocManaged(&u_sort, n);
     MallocManaged(&u_sort_alt, n);
@@ -68,13 +70,15 @@ class OneSweep {
     return (size + globalHistPartitionSize - 1) / globalHistPartitionSize;
   }
 
- protected:
   int n;
   unsigned int* u_sort;
-
- private:
   unsigned int* u_sort_alt;
   unsigned int* u_global_histogram;
   unsigned int* u_index;
   unsigned int* u_pass_histograms[4];
+
+  // friend void gpu::Dispatch_SortKernels(OneSweep& one_sweep,
+  //                                       int n,
+  //                                       int grid_size,
+  //                                       const cudaStream_t& stream);
 };

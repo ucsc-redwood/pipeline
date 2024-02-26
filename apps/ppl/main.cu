@@ -8,7 +8,7 @@
 #include "app_params.hpp"
 #include "gpu_kernels.cuh"
 #include "kernels/all.hpp"
-#include "pipe.cuh"
+// #include "pipe.cuh"
 #include "shared/types.h"
 
 namespace {
@@ -76,8 +76,11 @@ int main(const int argc, const char* argv[]) {
   cudaStream_t stream;
   cudaStreamCreate(&stream);
 
-  auto one_sweep = gpu::OneSweepHelper::CreateOnesweepData(n);
-  gpu::OneSweepHelper::AttachOnesweepStream(one_sweep, stream);
+  auto one_sweep = OneSweep(n);
+  one_sweep.attachStream(stream);
+
+  auto mem_size = one_sweep.getMemorySize();
+  spdlog::info("Onesweep Memory size: {} MB", mem_size / 1024 / 1024);
 
   int* num_unique_out;
   cudaMallocManaged(&num_unique_out, sizeof(int));
@@ -87,28 +90,38 @@ int main(const int argc, const char* argv[]) {
   gpu::Disptach_InitRandomVec4(u_points, params, params.my_num_blocks, stream);
 
   gpu::Dispatch_MortonCompute(
-      u_points, one_sweep.u_sort, params, params.my_num_blocks, stream);
+      u_points, one_sweep.getSort(), params, params.my_num_blocks, stream);
 
   gpu::Dispatch_SortKernels(one_sweep, n, params.my_num_blocks, stream);
 
   gpu::Dispatch_CountUnique(
-      one_sweep.u_sort, num_unique_out, n, params.my_num_blocks, stream);
-  
-  
-
+      one_sweep.getSort(), num_unique_out, n, params.my_num_blocks, stream);
 
   cudaDeviceSynchronize();
 
   // -----------------------------------------------------------------------
 
-  auto is_sorted = std::is_sorted(one_sweep.u_sort, one_sweep.u_sort + n);
+  // // peek 10 sort
+  // for (int i = 0; i < 10; i++) {
+  //   spdlog::info("u_sort[{}] = {}", i, one_sweep.getSort()[i]);
+  // }
 
-  spdlog::info("is_sorted = {}", is_sorted);
+  // auto is_sorted = std::is_sorted(one_sweep.getSort(), one_sweep.getSort() + n);
+  // spdlog::info("is_sorted = {}", is_sorted);
+
+  // find where it was not sorted
+  if (!is_sorted) {
+    for (int i = 0; i < n - 1; i++) {
+      if (one_sweep.getSort()[i] > one_sweep.getSort()[i + 1]) {
+        spdlog::info("u_sort[{}] = {}", i, one_sweep.getSort()[i]);
+        spdlog::info("u_sort[{}] = {}", i + 1, one_sweep.getSort()[i + 1]);
+        // break;
+      }
+    }
+  }
 
   cudaFree(u_points);
-  gpu::OneSweepHelper::DestroyOnesweepData(one_sweep);
 
   cudaStreamDestroy(stream);
-
   return 0;
 }

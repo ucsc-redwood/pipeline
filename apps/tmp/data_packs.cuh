@@ -2,6 +2,7 @@
 
 // Fixed for 4 passes, 256 radix
 // This is what we care, no need to generalize it
+namespace {
 
 template <typename T>
 constexpr void MallocManaged(T** ptr, size_t num_items) {
@@ -10,6 +11,8 @@ constexpr void MallocManaged(T** ptr, size_t num_items) {
 
 #define AttachStreamSingle(ptr) \
   cudaStreamAttachMemAsync(stream, ptr, 0, cudaMemAttachSingle)
+
+}  // namespace
 
 class OneSweep {
  public:

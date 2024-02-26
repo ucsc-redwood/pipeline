@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <iostream>
+#include <random>
 
 #include "cuda/kernels/02_sort.cuh"
 #include "data_packs.cuh"
@@ -92,7 +93,16 @@ int main(const int argc, const char* argv[]) {
   OneSweep one_sweep(n);
   one_sweep.attachStream(stream);
 
-  std::generate_n(one_sweep.getSort(), n, [n = n]() mutable { return --n; });
+  auto mem_size = one_sweep.getMemorySize();
+  // print in MB
+  std::cout << "Memory size: " << mem_size / 1024 / 1024 << " MB" << std::endl;
+
+  // std::generate_n(one_sweep.getSort(), n, [n = n]() mutable { return --n; });
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> dis(0, n);
+  std::generate_n(one_sweep.getSort(), n, [&dis, &gen]() { return dis(gen); });
 
   auto is_sorted = std::is_sorted(one_sweep.getSort(), one_sweep.getSort() + n);
   std::cout << "Is sorted: " << std::boolalpha << is_sorted << std::endl;
