@@ -8,7 +8,6 @@
 #include "app_params.hpp"
 #include "gpu_kernels.cuh"
 #include "kernels/all.hpp"
-// #include "pipe.cuh"
 #include "shared/types.h"
 
 namespace {
@@ -109,16 +108,16 @@ int main(const int argc, const char* argv[]) {
   // auto is_sorted = std::is_sorted(one_sweep.getSort(), one_sweep.getSort() +
   // n); spdlog::info("is_sorted = {}", is_sorted);
 
-  // find where it was not sorted
-  if (!is_sorted) {
-    for (int i = 0; i < n - 1; i++) {
-      if (one_sweep.getSort()[i] > one_sweep.getSort()[i + 1]) {
-        spdlog::info("u_sort[{}] = {}", i, one_sweep.getSort()[i]);
-        spdlog::info("u_sort[{}] = {}", i + 1, one_sweep.getSort()[i + 1]);
-        // break;
-      }
-    }
-  }
+  // // find where it was not sorted
+  // if (!is_sorted) {
+  //   for (int i = 0; i < n - 1; i++) {
+  //     if (one_sweep.getSort()[i] > one_sweep.getSort()[i + 1]) {
+  //       spdlog::info("u_sort[{}] = {}", i, one_sweep.getSort()[i]);
+  //       spdlog::info("u_sort[{}] = {}", i + 1, one_sweep.getSort()[i + 1]);
+  //       // break;
+  //     }
+  //   }
+  // }
 
   cudaFree(u_points);
 
