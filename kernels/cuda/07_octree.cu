@@ -8,23 +8,18 @@ namespace gpu {
 
 namespace v2 {
 
-__global__ void k_MakeOctNodes_Deps(
-    // --- new parameters
-    int (*u_children)[8],
-    glm::vec4* u_corner,
-    float* u_cell_size,
-    int* u_child_node_mask,
-    // [[maybe_unused]] int* u_child_leaf_mask,
-    // --- end new parameters
-    const int* node_offsets,    // prefix sum
-    const int* rt_node_counts,  // edge count
-    const unsigned int* codes,
-    const uint8_t* rt_prefixN,
-    const int* rt_parents,
-    const float min_coord,
-    const float range,
-    // const int N /* number of brt nodes */
-    const int* u_num_unique) {
+__global__ void k_MakeOctNodes_Deps(int (*u_children)[8],
+                                    glm::vec4* u_corner,
+                                    float* u_cell_size,
+                                    int* u_child_node_mask,
+                                    const int* node_offsets,    // prefix sum
+                                    const int* rt_node_counts,  // edge count
+                                    const unsigned int* codes,
+                                    const uint8_t* rt_prefixN,
+                                    const int* rt_parents,
+                                    const float min_coord,
+                                    const float range,
+                                    const int* u_num_unique) {
   // do the initial setup on 1 thread
   if (threadIdx.x == 0) {
     const auto root_level = rt_prefixN[0] / 3;

@@ -140,9 +140,10 @@ inline void Dispatch_BuildRadixTree(const int* num_unique /* addr #unique */,
                                     const cudaStream_t stream) {
   constexpr auto block_size = 768;
 
-  spdlog::debug("Dispatching k_BuildRadixTree with ({} blocks, {} threads)",
-                grid_size,
-                block_size);
+  spdlog::debug(
+      "Dispatching k_BuildRadixTree_Deps with ({} blocks, {} threads)",
+      grid_size,
+      block_size);
 
   k_BuildRadixTree_Deps<<<grid_size, block_size, 0, stream>>>(num_unique,
                                                               codes,
@@ -171,16 +172,30 @@ inline void Dispatch_EdgeCount(const uint8_t* prefix_n,
 }
 
 template <typename... Args>
-void Dispatch_MakeOctree(Args&&... args,
-                         const int grid_size,
-                         const cudaStream_t stream) {
+void Dispatch_MakeOctree(const int grid_size,
+                         const cudaStream_t stream,
+                         Args&&... args) {
   constexpr auto block_size = 768;
 
-  spdlog::debug("Dispatching k_EdgeCount_Deps with ({} blocks, {} threads)",
+  spdlog::debug("Dispatching k_MakeOctNodes_Deps with ({} blocks, {} threads)",
                 grid_size,
                 block_size);
 
   v2::k_MakeOctNodes_Deps<<<grid_size, block_size, 0, stream>>>(
+      std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+void Dispatch_LinkOctreeNodes(const int grid_size,
+                              const cudaStream_t stream,
+                              Args&&... args) {
+  constexpr auto block_size = 768;
+
+  spdlog::debug("Dispatching k_LinkLeafNodes_Deps with ({} blocks, {} threads)",
+                grid_size,
+                block_size);
+
+  v2::k_LinkLeafNodes_Deps<<<grid_size, block_size, 0, stream>>>(
       std::forward<Args>(args)...);
 }
 

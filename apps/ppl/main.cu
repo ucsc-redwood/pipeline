@@ -125,21 +125,9 @@ int main(const int argc, const char* argv[]) {
                       pipe->u_edge_count + pipe->getNumUnique_unsafe(),
                       pipe->u_prefix_sum);
 
-  // gpu::v2::k_MakeOctNodes_Deps<<<params.my_num_blocks, 768, 0, stream>>>(
-  //     pipe->oct.u_children,
-  //     pipe->oct.u_corner,
-  //     pipe->oct.u_cell_size,
-  //     pipe->oct.u_child_node_mask /* Node Mask */,
-  //     pipe->u_prefix_sum,
-  //     pipe->u_edge_count,
-  //     pipe->one_sweep.getSort(),
-  //     pipe->brt.prefixN,
-  //     pipe->brt.parent,
-  //     params.min,
-  //     params.range,
-  //     pipe->u_num_unique);
-
-  gpu::Dispatch_MakeOctree(pipe->oct.u_children,
+  gpu::Dispatch_MakeOctree(params.my_num_blocks,
+                           stream,
+                           pipe->oct.u_children,
                            pipe->oct.u_corner,
                            pipe->oct.u_cell_size,
                            pipe->oct.u_child_node_mask /* Node Mask */,
@@ -150,22 +138,21 @@ int main(const int argc, const char* argv[]) {
                            pipe->brt.parent,
                            params.min,
                            params.range,
-                           pipe->u_num_unique,
-                           params.my_num_blocks,
-                           stream);
+                           pipe->u_num_unique);
 
-  // gpu::v2::k_LinkLeafNodes_Deps<<<params.my_num_blocks, 768, 0, stream>>>(
-  //     pipe->oct.u_children,
-  //     pipe->oct.u_child_leaf_mask /* Leaf Mask */,
-  //     pipe->u_prefix_sum,
-  //     pipe->u_edge_count,
-  //     pipe->one_sweep.getSort(),
-  //     pipe->brt.hasLeafLeft,
-  //     pipe->brt.hasLeafRight,
-  //     pipe->brt.prefixN,
-  //     pipe->brt.parent,
-  //     pipe->brt.leftChild,
-  //     pipe->u_num_unique);
+  gpu::Dispatch_LinkOctreeNodes(params.my_num_blocks,
+                                stream,
+                                pipe->oct.u_children,
+                                pipe->oct.u_child_leaf_mask /* Leaf Mask */,
+                                pipe->u_prefix_sum,
+                                pipe->u_edge_count,
+                                pipe->one_sweep.getSort(),
+                                pipe->brt.hasLeafLeft,
+                                pipe->brt.hasLeafRight,
+                                pipe->brt.prefixN,
+                                pipe->brt.parent,
+                                pipe->brt.leftChild,
+                                pipe->u_num_unique);
 
   checkCudaErrors(cudaStreamSynchronize(stream));
 
