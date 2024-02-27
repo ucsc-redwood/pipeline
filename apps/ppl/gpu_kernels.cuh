@@ -182,10 +182,6 @@ void Dispatch_EdgeCount(const uint8_t* prefix_n,
       prefix_n, parents, edge_count, n_unique);
 }
 
-
-void Dispatch_MakeOctree(){
-
-
-}
+void Dispatch_MakeOctree() {}
 
 }  // namespace gpu
