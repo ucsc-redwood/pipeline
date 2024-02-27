@@ -5,7 +5,6 @@
 #include "app_params.hpp"
 #include "cuda/kernels/all.cuh"
 #include "one_sweep.cuh"
-#include "shared/types.h"
 
 /// All Gpu kerenls are wrapped with a 'grid_size' and 'stream' parameter.
 
@@ -169,7 +168,7 @@ void Dispatch_BuildRadixTree(const int* num_unique /* addr #unique */,
 void Dispatch_EdgeCount(const uint8_t* prefix_n,
                         const int* parents,
                         int* edge_count,
-                        const int* n_unique, // changed to 'unique'
+                        const int* n_unique,  // changed to 'unique'
                         // --- new parameters
                         const int grid_size,
                         const cudaStream_t& stream) {
@@ -182,7 +181,5 @@ void Dispatch_EdgeCount(const uint8_t* prefix_n,
   gpu::k_EdgeCount_Deps<<<grid_size, block_size, 0, stream>>>(
       prefix_n, parents, edge_count, n_unique);
 }
-
-void Dispatch_PrefixSum() {}
 
 }  // namespace gpu

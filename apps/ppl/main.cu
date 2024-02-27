@@ -6,8 +6,9 @@
 #include <iostream>
 
 #include "app_params.hpp"
+#include "better_oct.cuh"
+#include "cuda/common/helper_cuda.hpp"
 #include "gpu_kernels.cuh"
-#include "shared/types.h"
 
 struct RadixTree {
   explicit RadixTree(const int n) : n_nodes(n) {
@@ -56,11 +57,11 @@ struct RadixTree {
 
 // We need to assume n != #unique
 struct Pipe {
-  explicit Pipe(const int n) : n(n), one_sweep(n), brt(n) {
+  explicit Pipe(const int n) : n(n), one_sweep(n), brt(n), oct(0.6 * n) {
     MallocManaged(&u_points, n);
     MallocManaged(&u_edge_count, n);
     MallocManaged(&u_prefix_sum, n);
-    MallocManaged(&u_oct_nodes, n);
+    // MallocManaged(&u_oct_nodes, n);
     MallocManaged(&u_num_unique, 1);
     MallocManaged(&num_oct_nodes_out, 1);
   }
@@ -69,7 +70,7 @@ struct Pipe {
     cudaFree(u_points);
     cudaFree(u_edge_count);
     cudaFree(u_prefix_sum);
-    cudaFree(u_oct_nodes);
+    // cudaFree(u_oct_nodes);
     cudaFree(u_num_unique);
     cudaFree(num_oct_nodes_out);
   }
@@ -77,10 +78,11 @@ struct Pipe {
   void attachStream(cudaStream_t& stream) {
     one_sweep.attachStream(stream);
     brt.attachStream(stream);
+    oct.attachStream(stream);
     AttachStreamSingle(u_points);
     AttachStreamSingle(u_edge_count);
     AttachStreamSingle(u_prefix_sum);
-    AttachStreamSingle(u_oct_nodes);
+    // AttachStreamSingle(u_oct_nodes);
     AttachStreamSingle(u_num_unique);
     AttachStreamSingle(num_oct_nodes_out);
   }
@@ -90,10 +92,11 @@ struct Pipe {
     total += n * sizeof(glm::vec4);
     total += n * sizeof(int);
     total += n * sizeof(int);
-    total += n * sizeof(OctNode);
+    // total += n * sizeof(OctNode);
     total += sizeof(int);
     total += one_sweep.getMemorySize();
     total += brt.getMemorySize();
+    total += oct.getMemorySize();
     return total;
   }
 
@@ -108,7 +111,9 @@ struct Pipe {
   RadixTree brt;
   int* u_edge_count;
   int* u_prefix_sum;
-  OctNode* u_oct_nodes;
+  OctNodes_better oct;
+
+  // OctNode* u_oct_nodes;
 
   const int n;
   // unfortunately, we need to use a pointer here, because these values depend
@@ -119,6 +124,7 @@ struct Pipe {
 
 int main(const int argc, const char* argv[]) {
   constexpr auto n = 1920 * 1080;  // 2.0736M
+  constexpr auto educated_guess_n_oct_nodes = 0.6;
   int n_threads = 4;
   int my_num_blocks = 64;
   bool debug_print = false;
@@ -168,7 +174,7 @@ int main(const int argc, const char* argv[]) {
       params.my_num_blocks);
 
   cudaStream_t stream;
-  cudaStreamCreate(&stream);
+  checkCudaErrors(cudaStreamCreate(&stream));
 
   auto pipe = std::make_unique<Pipe>(n);
   pipe->attachStream(stream);
@@ -195,6 +201,9 @@ int main(const int argc, const char* argv[]) {
                             params.my_num_blocks,
                             stream);
 
+  checkCudaErrors(cudaStreamSynchronize(stream));
+  spdlog::info("pipe->getNumUnique_unsafe() = {}", pipe->getNumUnique_unsafe());
+
   gpu::Dispatch_BuildRadixTree(pipe->u_num_unique,
                                pipe->one_sweep.getSort(),
                                pipe->brt.prefixN,
@@ -212,7 +221,7 @@ int main(const int argc, const char* argv[]) {
                           params.my_num_blocks,
                           stream);
 
-  cudaDeviceSynchronize();
+  checkCudaErrors(cudaStreamSynchronize(stream));
 
   // TMP
   std::inclusive_scan(pipe->u_edge_count,
@@ -224,10 +233,18 @@ int main(const int argc, const char* argv[]) {
     spdlog::debug("u_prefix_sum[{}] = {}", i, pipe->u_prefix_sum[i]);
   }
 
+  const auto num_oct_nodes = pipe->u_prefix_sum[pipe->getNumBrtNodes_unsafe()];
+  spdlog::info("num_oct_nodes = {}", num_oct_nodes);
+
+  // print percentage of oct vs n input. "(xx/yy) = x.xx%"
+  const auto safety_ratio = 100.0 * num_oct_nodes / n;
+  spdlog::info("({}/{}) = {:.2f}%", num_oct_nodes, n, safety_ratio);
+  if (safety_ratio > 100 * educated_guess_n_oct_nodes) {
+    spdlog::error("pre allocated num_oct_nodes is too small");
+  }
+
   // -----------------------------------------------------------------------
 
-  spdlog::info("pipe->getNumUnique_unsafe() = {}", pipe->getNumUnique_unsafe());
-
-  cudaStreamDestroy(stream);
+  checkCudaErrors(cudaStreamDestroy(stream));
   return 0;
 }

@@ -14,6 +14,7 @@ constexpr void MallocManaged(T** ptr, size_t num_items) {
 
 }  // namespace
 
+// Hard coded for 4 passes, 256 threads
 struct OneSweep {
   explicit OneSweep(const int n) : n(n) {
     MallocManaged(&u_sort, n);
