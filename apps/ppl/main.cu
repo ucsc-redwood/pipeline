@@ -84,8 +84,14 @@ int main(const int argc, const char* argv[]) {
 
   // -----------------------------------------------------------------------
 
-  gpu::Dispatch_InitRandomVec4(
-      pipe->u_points, params, params.my_num_blocks, stream);
+  gpu::DispatchKernel(gpu::k_InitRandomVec4,
+                      params.my_num_blocks,
+                      stream,
+                      pipe->u_points,
+                      params.n,
+                      params.min,
+                      params.range,
+                      params.seed);
 
   gpu::Dispatch_MortonCompute(pipe->u_points,
                               pipe->one_sweep.getSort(),

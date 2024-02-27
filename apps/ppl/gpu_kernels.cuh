@@ -12,6 +12,21 @@
 
 namespace gpu {
 
+template <typename Func, typename... Args>
+void DispatchKernel(Func&& func,
+                    const int grid_size,
+                    const cudaStream_t stream,
+                    Args&&... args) {
+  // todo: lookup from table
+  constexpr auto block_size = 768;
+
+  spdlog::debug(
+      "Dispatching kernel with ({} blocks, {} threads)", grid_size, block_size);
+
+  std::forward<Func>(func)<<<grid_size, block_size, 0, stream>>>(
+      std::forward<Args>(args)...);
+}
+
 inline void Dispatch_InitRandomVec4(glm::vec4* u_data,
                                     const AppParams& params,
                                     // --- new parameters
