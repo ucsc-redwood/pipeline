@@ -9,6 +9,8 @@
 #include "better_oct.cuh"
 #include "cuda/common/helper_cuda.hpp"
 #include "gpu_kernels.cuh"
+#include "shared/morton.h"
+#include "shared/oct_v2.h"
 
 struct RadixTree {
   explicit RadixTree(const int n) : n_nodes(n) {
@@ -104,6 +106,9 @@ struct Pipe {
   [[nodiscard]] int getNumUnique_unsafe() const { return *u_num_unique; }
   [[nodiscard]] int getNumBrtNodes_unsafe() const {
     return getNumUnique_unsafe() - 1;
+  }
+  [[nodiscard]] const unsigned int* getMortonKeys() const {
+    return one_sweep.u_sort;
   }
 
   glm::vec4* u_points;
@@ -244,7 +249,23 @@ int main(const int argc, const char* argv[]) {
   }
 
   // -----------------------------------------------------------------------
+  // tmp
 
-  checkCudaErrors(cudaStreamDestroy(stream));
+  const auto root_level = pipe->brt.prefixN[0] / 3;
+  const auto root_prefix =
+      pipe->getMortonKeys()[0] >> (morton_bits - (3 * root_level));
+
+  // compute root's corner
+  shared::morton32_to_xyz(&pipe->oct.u_corner[0],
+                          root_prefix << (morton_bits - (3 * root_level)),
+                          params.min,
+                          params.range);
+  pipe->oct.u_cell_size[0] = params.range;
+
+  gpu::k_
+
+      // -----------------------------------------------------------------------
+
+      checkCudaErrors(cudaStreamDestroy(stream));
   return 0;
 }

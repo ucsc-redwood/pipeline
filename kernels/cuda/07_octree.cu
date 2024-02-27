@@ -5,15 +5,16 @@
 
 namespace gpu {
 
-__global__ void k_MakeOctNodes(OctNode* oct_nodes,
-                               const int* node_offsets,    // prefix sum
-                               const int* rt_node_counts,  // edge count
-                               const unsigned int* codes,
-                               const uint8_t* rt_prefixN,
-                               const int* rt_parents,
-                               const float min_coord,
-                               const float range,
-                               const int N  // number of brt nodes
+[[deprecated]] __global__ void k_MakeOctNodes(
+    OctNode* oct_nodes,
+    const int* node_offsets,    // prefix sum
+    const int* rt_node_counts,  // edge count
+    const unsigned int* codes,
+    const uint8_t* rt_prefixN,
+    const int* rt_parents,
+    const float min_coord,
+    const float range,
+    const int N  // number of brt nodes
 ) {
   const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
   const auto stride = blockDim.x * gridDim.x;
@@ -37,16 +38,16 @@ __global__ void k_MakeOctNodes(OctNode* oct_nodes,
   }
 }
 
-__global__ void k_LinkLeafNodes(OctNode* nodes,
-                                const int* node_offsets,
-                                const int* rt_node_counts,
-                                const unsigned int* codes,
-                                const bool* rt_hasLeafLeft,
-                                const bool* rt_hasLeafRight,
-                                const uint8_t* rt_prefixN,
-                                const int* rt_parents,
-                                const int* rt_leftChild,
-                                const int N) {
+[[deprecated]] __global__ void k_LinkLeafNodes(OctNode* nodes,
+                                               const int* node_offsets,
+                                               const int* rt_node_counts,
+                                               const unsigned int* codes,
+                                               const bool* rt_hasLeafLeft,
+                                               const bool* rt_hasLeafRight,
+                                               const uint8_t* rt_prefixN,
+                                               const int* rt_parents,
+                                               const int* rt_leftChild,
+                                               const int N) {
   const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
   const auto stride = blockDim.x * gridDim.x;
 
