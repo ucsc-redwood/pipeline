@@ -7,7 +7,6 @@
 
 #include "app_params.hpp"
 #include "gpu_kernels.cuh"
-#include "kernels/all.hpp"
 #include "shared/types.h"
 
 struct RadixTree {
@@ -215,18 +214,19 @@ int main(const int argc, const char* argv[]) {
 
   cudaDeviceSynchronize();
 
+  // TMP
+  std::inclusive_scan(pipe->u_edge_count,
+                      pipe->u_edge_count + pipe->getNumUnique_unsafe(),
+                      pipe->u_prefix_sum);
+
+  // peek 10 prefix sum
+  for (int i = 0; i < 10; i++) {
+    spdlog::debug("u_prefix_sum[{}] = {}", i, pipe->u_prefix_sum[i]);
+  }
+
   // -----------------------------------------------------------------------
 
   spdlog::info("pipe->getNumUnique_unsafe() = {}", pipe->getNumUnique_unsafe());
-  // for (int i = 0; i < 10; i++) {
-  //   spdlog::debug("prefixN[{}] = {}", i, pipe->brt.prefixN[i]);
-  // }
-
-  // peek 10 edge count
-
-  for (int i = 0; i < 10; i++) {
-    spdlog::debug("u_edge_count[{}] = {}", i, pipe->u_edge_count[i]);
-  }
 
   cudaStreamDestroy(stream);
   return 0;
