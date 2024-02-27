@@ -1,4 +1,5 @@
-BasedOnStyle:  Google
+BasedOnStyle: Google
 BinPackParameters: false
 BinPackArguments: false
 AlignTrailingComments: true
+# AlwaysBreakAfterDefinitionReturnType: All

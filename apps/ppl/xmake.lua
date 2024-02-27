@@ -1,10 +1,10 @@
-
 add_requires("openmp")
 
 target("ppl")
     set_kind("binary")
     add_includedirs("$(projectdir)/include")
-    add_files("*.cu")
+    add_headerfiles("*.hpp", "**/*.cuh", "../../include/**/*")
+    add_files("main.cu")
     add_cugencodes("native")
     add_packages("glm", "spdlog", "cli11", "openmp")
     add_deps("kernels", "gpu_kernels")

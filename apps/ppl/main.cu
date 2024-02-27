@@ -1,121 +1,22 @@
+#include <cuda_runtime_api.h>
 #include <omp.h>
 
 #include <CLI/CLI.hpp>
 #include <algorithm>
-#include <chrono>
 #include <iostream>
 
 #include "app_params.hpp"
+#include "better_types/pipe.cuh"
+#include "cuda/common/helper_cuda.hpp"
 #include "gpu_kernels.cuh"
-#include "shared/types.h"
+#include "shared/morton.h"
 
-struct RadixTree {
-  explicit RadixTree(const int n) : n_nodes(n) {
-    MallocManaged(&prefixN, n);
-    MallocManaged(&hasLeafLeft, n);
-    MallocManaged(&hasLeafRight, n);
-    MallocManaged(&leftChild, n);
-    MallocManaged(&parent, n);
-  }
+constexpr auto kEducatedGuessNumOctNodes = 0.6;
 
-  ~RadixTree() {
-    cudaFree(prefixN);
-    cudaFree(hasLeafLeft);
-    cudaFree(hasLeafRight);
-    cudaFree(leftChild);
-    cudaFree(parent);
-  }
-
-  void attachStream(cudaStream_t& stream) {
-    AttachStreamSingle(prefixN);
-    AttachStreamSingle(hasLeafLeft);
-    AttachStreamSingle(hasLeafRight);
-    AttachStreamSingle(leftChild);
-    AttachStreamSingle(parent);
-  }
-
-  [[nodiscard]] size_t getMemorySize() const {
-    size_t total = 0;
-    total += n_nodes * sizeof(uint8_t);
-    total += n_nodes * sizeof(bool);
-    total += n_nodes * sizeof(bool);
-    total += n_nodes * sizeof(int);
-    total += n_nodes * sizeof(int);
-    return total;
-  }
-
-  [[nodiscard]] int getNumNodes() const { return n_nodes; }
-
-  const int n_nodes;
-  uint8_t* prefixN;
-  bool* hasLeafLeft;
-  bool* hasLeafRight;
-  int* leftChild;
-  int* parent;
-};
-
-// We need to assume n != #unique
-struct Pipe {
-  explicit Pipe(const int n) : n(n), one_sweep(n), brt(n) {
-    MallocManaged(&u_points, n);
-    MallocManaged(&u_edge_count, n);
-    MallocManaged(&u_prefix_sum, n);
-    MallocManaged(&u_oct_nodes, n);
-    MallocManaged(&u_num_unique, 1);
-    MallocManaged(&num_oct_nodes_out, 1);
-  }
-
-  ~Pipe() {
-    cudaFree(u_points);
-    cudaFree(u_edge_count);
-    cudaFree(u_prefix_sum);
-    cudaFree(u_oct_nodes);
-    cudaFree(u_num_unique);
-    cudaFree(num_oct_nodes_out);
-  }
-
-  void attachStream(cudaStream_t& stream) {
-    one_sweep.attachStream(stream);
-    brt.attachStream(stream);
-    AttachStreamSingle(u_points);
-    AttachStreamSingle(u_edge_count);
-    AttachStreamSingle(u_prefix_sum);
-    AttachStreamSingle(u_oct_nodes);
-    AttachStreamSingle(u_num_unique);
-    AttachStreamSingle(num_oct_nodes_out);
-  }
-
-  [[nodiscard]] size_t getMemorySize() const {
-    size_t total = 0;
-    total += n * sizeof(glm::vec4);
-    total += n * sizeof(int);
-    total += n * sizeof(int);
-    total += n * sizeof(OctNode);
-    total += sizeof(int);
-    total += one_sweep.getMemorySize();
-    total += brt.getMemorySize();
-    return total;
-  }
-
-  [[nodiscard]] int getNumPoints() const { return n; }
-  [[nodiscard]] int getNumUnique_unsafe() const { return *u_num_unique; }
-  [[nodiscard]] int getNumBrtNodes_unsafe() const {
-    return getNumUnique_unsafe() - 1;
-  }
-
-  glm::vec4* u_points;
-  OneSweep one_sweep;
-  RadixTree brt;
-  int* u_edge_count;
-  int* u_prefix_sum;
-  OctNode* u_oct_nodes;
-
-  const int n;
-  // unfortunately, we need to use a pointer here, because these values depend
-  // on the computation resutls
-  int* u_num_unique;
-  int* num_oct_nodes_out;
-};
+[[nodiscard]] std::ostream& operator<<(std::ostream& os, const glm::vec4& v) {
+  os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
+  return os;
+}
 
 int main(const int argc, const char* argv[]) {
   constexpr auto n = 1920 * 1080;  // 2.0736M
@@ -144,19 +45,24 @@ int main(const int argc, const char* argv[]) {
     spdlog::set_level(spdlog::level::debug);
   }
 
+#ifdef NDEBUG
+  spdlog::debug("NDEBUG is defined");
+#else
+  spdlog::debug("NDEBUG is not defined");
+#endif
+
   omp_set_num_threads(n_threads);
 
 #pragma omp parallel
   { printf("Hello from thread %d\n", omp_get_thread_num()); }
 
-  AppParams params{
-      .n = n,
-      .min = 0.0f,
-      .max = 1024.0f,
-      .range = 1024.0f,
-      .seed = 114514,
-      .my_num_blocks = my_num_blocks,
-  };
+  AppParams params;
+  params.n = n;
+  params.min = 0.0f;
+  params.max = 1024.0f;
+  params.range = params.max - params.min;
+  params.seed = 114514;
+  params.my_num_blocks = my_num_blocks;
 
   spdlog::info(
       "params: n={}, min={}, max={}, range={}, seed={}, my_num_blocks={}",
@@ -168,9 +74,9 @@ int main(const int argc, const char* argv[]) {
       params.my_num_blocks);
 
   cudaStream_t stream;
-  cudaStreamCreate(&stream);
+  checkCudaErrors(cudaStreamCreate(&stream));
 
-  auto pipe = std::make_unique<Pipe>(n);
+  const auto pipe = std::make_unique<Pipe>(n);
   pipe->attachStream(stream);
 
   const auto mem_size = pipe->getMemorySize();
@@ -178,8 +84,14 @@ int main(const int argc, const char* argv[]) {
 
   // -----------------------------------------------------------------------
 
-  gpu::Disptach_InitRandomVec4(
-      pipe->u_points, params, params.my_num_blocks, stream);
+  gpu::DispatchKernel(gpu::k_InitRandomVec4,
+                      params.my_num_blocks,
+                      stream,
+                      pipe->u_points,
+                      params.n,
+                      params.min,
+                      params.range,
+                      params.seed);
 
   gpu::Dispatch_MortonCompute(pipe->u_points,
                               pipe->one_sweep.getSort(),
@@ -212,22 +124,76 @@ int main(const int argc, const char* argv[]) {
                           params.my_num_blocks,
                           stream);
 
-  cudaDeviceSynchronize();
+  checkCudaErrors(cudaStreamSynchronize(stream));
 
   // TMP
   std::inclusive_scan(pipe->u_edge_count,
                       pipe->u_edge_count + pipe->getNumUnique_unsafe(),
                       pipe->u_prefix_sum);
 
-  // peek 10 prefix sum
-  for (int i = 0; i < 10; i++) {
-    spdlog::debug("u_prefix_sum[{}] = {}", i, pipe->u_prefix_sum[i]);
-  }
+  gpu::Dispatch_MakeOctree(params.my_num_blocks,
+                           stream,
+                           pipe->oct.u_children,
+                           pipe->oct.u_corner,
+                           pipe->oct.u_cell_size,
+                           pipe->oct.u_child_node_mask /* Node Mask */,
+                           pipe->u_prefix_sum,
+                           pipe->u_edge_count,
+                           pipe->one_sweep.getSort(),
+                           pipe->brt.prefixN,
+                           pipe->brt.parent,
+                           params.min,
+                           params.range,
+                           pipe->u_num_unique);
+
+  gpu::Dispatch_LinkOctreeNodes(params.my_num_blocks,
+                                stream,
+                                pipe->oct.u_children,
+                                pipe->oct.u_child_leaf_mask /* Leaf Mask */,
+                                pipe->u_prefix_sum,
+                                pipe->u_edge_count,
+                                pipe->one_sweep.getSort(),
+                                pipe->brt.hasLeafLeft,
+                                pipe->brt.hasLeafRight,
+                                pipe->brt.prefixN,
+                                pipe->brt.parent,
+                                pipe->brt.leftChild,
+                                pipe->u_num_unique);
+
+  checkCudaErrors(cudaStreamSynchronize(stream));
 
   // -----------------------------------------------------------------------
 
   spdlog::info("pipe->getNumUnique_unsafe() = {}", pipe->getNumUnique_unsafe());
 
-  cudaStreamDestroy(stream);
+  {
+    // peek 10 prefix sum
+    for (int i = 0; i < 10; i++) {
+      spdlog::debug("u_prefix_sum[{}] = {}", i, pipe->u_prefix_sum[i]);
+    }
+
+    const auto num_oct_nodes =
+        pipe->u_prefix_sum[pipe->getNumBrtNodes_unsafe()];
+    spdlog::info("num_oct_nodes = {}", num_oct_nodes);
+
+    // print percentage of oct vs n input. "(xx/yy) = x.xx%"
+    const auto safety_ratio = 100.0 * num_oct_nodes / n;
+    spdlog::info("({}/{}) = {:.2f}%", num_oct_nodes, n, safety_ratio);
+    if (safety_ratio > 100 * kEducatedGuessNumOctNodes) {
+      spdlog::error("pre allocated num_oct_nodes is too small");
+    }
+  }
+
+  // peek 10 oct nodes, cornor, cell_size, parent, child_node_mask
+  for (int i = 0; i < 10; i++) {
+    std::cout << "oct_nodes[" << i << "]:\n";
+    std::cout << "\t corner: " << pipe->oct.u_corner[i] << "\n";
+    std::cout << "\t cell_size: " << pipe->oct.u_cell_size[i] << "\n";
+    std::cout << "\t parent: " << pipe->brt.parent[i] << "\n";
+    std::cout << "\t child_node_mask: " << pipe->oct.u_child_node_mask[i]
+              << "\n\n";
+  }
+
+  checkCudaErrors(cudaStreamDestroy(stream));
   return 0;
 }
