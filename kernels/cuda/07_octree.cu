@@ -60,17 +60,13 @@ __global__ void k_MakeOctNodes_Deps(
                                rt_prefixN,
                                rt_parents,
                                min_coord,
-                               range,
-                               N);
+                               range);
   }
 }
 
 __global__ void k_LinkLeafNodes_Deps(
     // --- new parameters
     int (*u_children)[8],
-    glm::vec4* u_corner,
-    float* u_cell_size,
-    // [[maybe_unused]] int* u_child_node_mask,
     int* u_child_leaf_mask,
     // --- end new parameters
     const int* node_offsets,
@@ -81,7 +77,6 @@ __global__ void k_LinkLeafNodes_Deps(
     const uint8_t* rt_prefixN,
     const int* rt_parents,
     const int* rt_leftChild,
-    // const int N
     const int* u_num_unique) {
   const auto N = *u_num_unique - 1;
   const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
@@ -92,8 +87,6 @@ __global__ void k_LinkLeafNodes_Deps(
   for (auto i = idx; i < N; i += stride) {
     shared::v2::ProcessLinkLeaf(i,
                                 u_children,
-                                u_corner,
-                                u_cell_size,
                                 u_child_leaf_mask,
                                 node_offsets,
                                 rt_node_counts,
@@ -102,8 +95,7 @@ __global__ void k_LinkLeafNodes_Deps(
                                 rt_hasLeafRight,
                                 rt_prefixN,
                                 rt_parents,
-                                rt_leftChild,
-                                N);
+                                rt_leftChild);
   }
 }
 

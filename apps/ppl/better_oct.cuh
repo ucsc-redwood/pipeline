@@ -4,11 +4,13 @@
 
 struct OctNodes_better {
   explicit OctNodes_better(const int n) : n_nodes(n) {
-    cudaMallocManaged(&u_children, n * 8 * sizeof(int));
-    cudaMallocManaged(&u_corner, n * sizeof(glm::vec4));
-    cudaMallocManaged(&u_cell_size, n * sizeof(float));
-    cudaMallocManaged(&u_child_node_mask, n * sizeof(int));
-    cudaMallocManaged(&u_child_leaf_mask, n * sizeof(int));
+    // clang-format off
+    cudaMallocManaged(reinterpret_cast<void**>(&u_children), n * 8 * sizeof(int));
+    cudaMallocManaged(reinterpret_cast<void**>(&u_corner), n * sizeof(glm::vec4));
+    cudaMallocManaged(reinterpret_cast<void**>(&u_cell_size), n * sizeof(float));
+    cudaMallocManaged(reinterpret_cast<void**>(&u_child_node_mask), n * sizeof(int));
+    cudaMallocManaged(reinterpret_cast<void**>(&u_child_leaf_mask), n * sizeof(int));
+    // clang-format on
   }
 
   ~OctNodes_better() {
@@ -19,7 +21,7 @@ struct OctNodes_better {
     cudaFree(u_child_leaf_mask);
   }
 
-  void attachStream(cudaStream_t stream) {
+  void attachStream(const cudaStream_t stream) const {
     cudaStreamAttachMemAsync(stream, u_children, 0, cudaMemAttachSingle);
     cudaStreamAttachMemAsync(stream, u_corner, 0, cudaMemAttachSingle);
     cudaStreamAttachMemAsync(stream, u_cell_size, 0, cudaMemAttachSingle);
@@ -37,8 +39,8 @@ struct OctNodes_better {
     return total;
   }
 
-  const int n_nodes;
-  int* u_num_nodes;
+  int n_nodes;
+  // int* u_num_nodes;
 
   int (*u_children)[8];
   glm::vec4* u_corner;

@@ -2,17 +2,13 @@
 
 // Fixed for 4 passes, 256 radix
 // This is what we care, no need to generalize it
-namespace {
-
 template <typename T>
-constexpr void MallocManaged(T** ptr, size_t num_items) {
+constexpr void MallocManaged(T** ptr, const size_t num_items) {
   cudaMallocManaged(ptr, num_items * sizeof(T));
 }
 
-#define AttachStreamSingle(ptr) \
+#define ATTACH_STREAM_SINGLE(ptr) \
   cudaStreamAttachMemAsync(stream, ptr, 0, cudaMemAttachSingle)
-
-}  // namespace
 
 // Hard coded for 4 passes, 256 threads
 struct OneSweep {
@@ -21,8 +17,8 @@ struct OneSweep {
     MallocManaged(&u_sort_alt, n);
     MallocManaged(&u_global_histogram, 256 * 4);
     MallocManaged(&u_index, 4);
-    for (auto i = 0; i < 4; i++) {
-      MallocManaged(&u_pass_histograms[i], 256 * binningThreadblocks(n));
+    for (auto& u_pass_histogram : u_pass_histograms) {
+      MallocManaged(&u_pass_histogram, 256 * binningThreadblocks(n));
     }
   }
 
@@ -31,21 +27,21 @@ struct OneSweep {
     cudaFree(u_sort_alt);
     cudaFree(u_global_histogram);
     cudaFree(u_index);
-    for (auto i = 0; i < 4; i++) {
-      cudaFree(u_pass_histograms[i]);
+    for (const auto& u_pass_histogram : u_pass_histograms) {
+      cudaFree(u_pass_histogram);
     }
   }
 
   [[nodiscard]] unsigned int* getSort() { return u_sort; }
   [[nodiscard]] const unsigned int* getSort() const { return u_sort; }
 
-  void attachStream(cudaStream_t& stream) {
-    AttachStreamSingle(u_sort);
-    AttachStreamSingle(u_sort_alt);
-    AttachStreamSingle(u_global_histogram);
-    AttachStreamSingle(u_index);
-    for (auto i = 0; i < 4; i++) {
-      AttachStreamSingle(u_pass_histograms[i]);
+  void attachStream(const cudaStream_t stream) const {
+    ATTACH_STREAM_SINGLE(u_sort);
+    ATTACH_STREAM_SINGLE(u_sort_alt);
+    ATTACH_STREAM_SINGLE(u_global_histogram);
+    ATTACH_STREAM_SINGLE(u_index);
+    for (const auto u_pass_histogram : u_pass_histograms) {
+      ATTACH_STREAM_SINGLE(u_pass_histogram);
     }
   }
 

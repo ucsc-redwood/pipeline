@@ -39,7 +39,6 @@ H_D_I void ProcessOctNode(const int i /*brt node index*/,
                           glm::vec4* u_corner,
                           float* u_cell_size,
                           int* u_child_node_mask,
-                          // [[maybe_unused]] int* u_child_leaf_mask,
                           // --------------------------
                           const int* node_offsets,    // prefix sum
                           const int* rt_node_counts,  // edge count
@@ -47,9 +46,7 @@ H_D_I void ProcessOctNode(const int i /*brt node index*/,
                           const uint8_t* rt_prefixN,
                           const int* rt_parents,
                           const float min_coord,
-                          const float range,
-                          const int N  // number of brt nodes
-) {
+                          const float range) {
   // For octrees, it starts at 'offset[x]', and the numbers is decided by the
   // 'count[i]'. You can imagine something like:
   // brt[0] contains oct nodes [0, 3] (4 total)
@@ -119,12 +116,9 @@ H_D_I void ProcessOctNode(const int i /*brt node index*/,
   }
 }
 
-H_D_I void ProcessLinkLeaf(int i /*brt node index*/,
+H_D_I void ProcessLinkLeaf(const int i /*brt node index*/,
                            // --------------------------
                            int (*u_children)[8],
-                           glm::vec4* u_corner,
-                           float* u_cell_size,
-                           //  [[maybe_unused]] int* u_child_node_mask,
                            int* u_child_leaf_mask,
                            // --------------------------
                            const int* node_offsets,
@@ -134,8 +128,7 @@ H_D_I void ProcessLinkLeaf(int i /*brt node index*/,
                            const bool* rt_hasLeafRight,
                            const uint8_t* rt_prefixN,
                            const int* rt_parents,
-                           const int* rt_leftChild,
-                           const int N) {
+                           const int* rt_leftChild) {
   if (rt_hasLeafLeft[i]) {
     auto leaf_idx = rt_leftChild[i];
     auto leaf_level = rt_prefixN[i] / 3 + 1;

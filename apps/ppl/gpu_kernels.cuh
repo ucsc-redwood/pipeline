@@ -10,11 +10,11 @@
 
 namespace gpu {
 
-void Disptach_InitRandomVec4(glm::vec4* u_data,
-                             const AppParams& params,
-                             // --- new parameters
-                             const int grid_size,
-                             const cudaStream_t& stream) {
+inline void Dispatch_InitRandomVec4(glm::vec4* u_data,
+                                    const AppParams& params,
+                                    // --- new parameters
+                                    const int grid_size,
+                                    const cudaStream_t& stream) {
   constexpr auto block_size = 768;
 
   spdlog::debug("Dispatching k_InitRandomVec4 with ({} blocks, {} threads)",
@@ -25,12 +25,12 @@ void Disptach_InitRandomVec4(glm::vec4* u_data,
       u_data, params.n, params.min, params.range, params.seed);
 }
 
-void Dispatch_MortonCompute(const glm::vec4* u_points,
-                            unsigned int* u_morton_keys,
-                            const AppParams& params,
-                            // --- new parameters
-                            const int grid_size,
-                            const cudaStream_t& stream) {
+inline void Dispatch_MortonCompute(const glm::vec4* u_points,
+                                   unsigned int* u_morton_keys,
+                                   const AppParams& params,
+                                   // --- new parameters
+                                   const int grid_size,
+                                   const cudaStream_t& stream) {
   constexpr auto block_size = 768;
 
   spdlog::debug("Dispatching k_ComputeMortonCode with ({} blocks, {} threads)",
@@ -41,11 +41,11 @@ void Dispatch_MortonCompute(const glm::vec4* u_points,
       u_points, u_morton_keys, params.n, params.min, params.range);
 }
 
-void Dispatch_SortKernels(OneSweep& one_sweep,
-                          const int n,
-                          // --- new parameters
-                          const int grid_size,
-                          const cudaStream_t& stream) {
+inline void Dispatch_SortKernels(const OneSweep& one_sweep,
+                                 const int n,
+                                 // --- new parameters
+                                 const int grid_size,
+                                 const cudaStream_t& stream) {
   constexpr int globalHistThreads = 128;
   constexpr int binningThreads = 512;
 
@@ -55,10 +55,10 @@ void Dispatch_SortKernels(OneSweep& one_sweep,
       grid_size,
       globalHistThreads);
 
-  gpu::k_GlobalHistogram_WithLogicalBlocks<<<grid_size,
-                                             globalHistThreads,
-                                             0,
-                                             stream>>>(
+  k_GlobalHistogram_WithLogicalBlocks<<<grid_size,
+                                        globalHistThreads,
+                                        0,
+                                        stream>>>(
       one_sweep.u_sort,
       one_sweep.u_global_histogram,
       n,
@@ -70,10 +70,7 @@ void Dispatch_SortKernels(OneSweep& one_sweep,
       grid_size,
       binningThreads);
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size,
-                                          binningThreads,
-                                          0,
-                                          stream>>>(
+  k_DigitBinning_WithLogicalBlocks<<<grid_size, binningThreads, 0, stream>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort,
       one_sweep.u_sort_alt,
@@ -83,10 +80,7 @@ void Dispatch_SortKernels(OneSweep& one_sweep,
       0,
       OneSweep::binningThreadblocks(n));
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size,
-                                          binningThreads,
-                                          0,
-                                          stream>>>(
+  k_DigitBinning_WithLogicalBlocks<<<grid_size, binningThreads, 0, stream>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort_alt,
       one_sweep.u_sort,
@@ -96,10 +90,7 @@ void Dispatch_SortKernels(OneSweep& one_sweep,
       8,
       OneSweep::binningThreadblocks(n));
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size,
-                                          binningThreads,
-                                          0,
-                                          stream>>>(
+  k_DigitBinning_WithLogicalBlocks<<<grid_size, binningThreads, 0, stream>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort,
       one_sweep.u_sort_alt,
@@ -109,10 +100,7 @@ void Dispatch_SortKernels(OneSweep& one_sweep,
       16,
       OneSweep::binningThreadblocks(n));
 
-  gpu::k_DigitBinning_WithLogicalBlocks<<<grid_size,
-                                          binningThreads,
-                                          0,
-                                          stream>>>(
+  k_DigitBinning_WithLogicalBlocks<<<grid_size, binningThreads, 0, stream>>>(
       one_sweep.u_global_histogram,
       one_sweep.u_sort_alt,
       one_sweep.u_sort,
@@ -123,62 +111,60 @@ void Dispatch_SortKernels(OneSweep& one_sweep,
       OneSweep::binningThreadblocks(n));
 }
 
-void Dispatch_CountUnique(unsigned int* keys,
-                          int* num_unique_out,
-                          int n,
-                          // --- new parameters
-                          const int grid_size,
-                          const cudaStream_t& stream) {
+inline void Dispatch_CountUnique(unsigned int* keys,
+                                 int* num_unique_out,
+                                 const int n,
+                                 // --- new parameters
+                                 const int grid_size,
+                                 const cudaStream_t& stream) {
   constexpr auto block_size = 768;
 
   spdlog::debug("Dispatching k_CountUnique with ({} blocks, {} threads)",
                 grid_size,
                 block_size);
 
-  gpu::k_CountUnique<<<grid_size, block_size, 0, stream>>>(
-      keys, num_unique_out, n);
+  k_CountUnique<<<grid_size, block_size, 0, stream>>>(keys, num_unique_out, n);
 }
 
-void Dispatch_BuildRadixTree(const int* num_unique /* addr #unique */,
-                             const unsigned int* codes,
-                             uint8_t* prefix_n,
-                             bool* has_leaf_left,
-                             bool* has_leaf_right,
-                             int* left_child,
-                             int* parent,
-                             // --- new parameters
-                             const int grid_size,
-                             const cudaStream_t& stream) {
+inline void Dispatch_BuildRadixTree(const int* num_unique /* addr #unique */,
+                                    const unsigned int* codes,
+                                    uint8_t* prefix_n,
+                                    bool* has_leaf_left,
+                                    bool* has_leaf_right,
+                                    int* left_child,
+                                    int* parent,
+                                    // --- new parameters
+                                    const int grid_size,
+                                    const cudaStream_t& stream) {
   constexpr auto block_size = 768;
 
   spdlog::debug("Dispatching k_BuildRadixTree with ({} blocks, {} threads)",
                 grid_size,
                 block_size);
 
-  gpu::k_BuildRadixTree_Deps<<<grid_size, block_size, 0, stream>>>(
-      num_unique,
-      codes,
-      prefix_n,
-      has_leaf_left,
-      has_leaf_right,
-      left_child,
-      parent);
+  k_BuildRadixTree_Deps<<<grid_size, block_size, 0, stream>>>(num_unique,
+                                                              codes,
+                                                              prefix_n,
+                                                              has_leaf_left,
+                                                              has_leaf_right,
+                                                              left_child,
+                                                              parent);
 }
 
-void Dispatch_EdgeCount(const uint8_t* prefix_n,
-                        const int* parents,
-                        int* edge_count,
-                        const int* n_unique,  // changed to 'unique'
-                        // --- new parameters
-                        const int grid_size,
-                        const cudaStream_t& stream) {
+inline void Dispatch_EdgeCount(const uint8_t* prefix_n,
+                               const int* parents,
+                               int* edge_count,
+                               const int* n_unique,  // changed to 'unique'
+                               // --- new parameters
+                               const int grid_size,
+                               const cudaStream_t& stream) {
   constexpr auto block_size = 768;
 
   spdlog::debug("Dispatching k_EdgeCount_Deps with ({} blocks, {} threads)",
                 grid_size,
                 block_size);
 
-  gpu::k_EdgeCount_Deps<<<grid_size, block_size, 0, stream>>>(
+  k_EdgeCount_Deps<<<grid_size, block_size, 0, stream>>>(
       prefix_n, parents, edge_count, n_unique);
 }
 

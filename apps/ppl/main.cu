@@ -1,8 +1,8 @@
+#include <cuda_runtime_api.h>
 #include <omp.h>
 
 #include <CLI/CLI.hpp>
 #include <algorithm>
-#include <chrono>
 #include <iostream>
 
 #include "app_params.hpp"
@@ -11,6 +11,8 @@
 #include "gpu_kernels.cuh"
 #include "shared/morton.h"
 #include "shared/oct_v2.h"
+
+constexpr auto kEducatedGuessNumOctNodes = 0.6;
 
 struct RadixTree {
   explicit RadixTree(const int n) : n_nodes(n) {
@@ -29,12 +31,12 @@ struct RadixTree {
     cudaFree(parent);
   }
 
-  void attachStream(cudaStream_t& stream) {
-    AttachStreamSingle(prefixN);
-    AttachStreamSingle(hasLeafLeft);
-    AttachStreamSingle(hasLeafRight);
-    AttachStreamSingle(leftChild);
-    AttachStreamSingle(parent);
+  void attachStream(const cudaStream_t stream) const {
+    ATTACH_STREAM_SINGLE(prefixN);
+    ATTACH_STREAM_SINGLE(hasLeafLeft);
+    ATTACH_STREAM_SINGLE(hasLeafRight);
+    ATTACH_STREAM_SINGLE(leftChild);
+    ATTACH_STREAM_SINGLE(parent);
   }
 
   [[nodiscard]] size_t getMemorySize() const {
@@ -59,7 +61,8 @@ struct RadixTree {
 
 // We need to assume n != #unique
 struct Pipe {
-  explicit Pipe(const int n) : n(n), one_sweep(n), brt(n), oct(0.6 * n) {
+  explicit Pipe(const int n)
+      : one_sweep(n), brt(n), oct(kEducatedGuessNumOctNodes * n), n(n) {
     MallocManaged(&u_points, n);
     MallocManaged(&u_edge_count, n);
     MallocManaged(&u_prefix_sum, n);
@@ -75,15 +78,15 @@ struct Pipe {
     cudaFree(num_oct_nodes_out);
   }
 
-  void attachStream(cudaStream_t& stream) {
+  void attachStream(const cudaStream_t stream) {
     one_sweep.attachStream(stream);
     brt.attachStream(stream);
     oct.attachStream(stream);
-    AttachStreamSingle(u_points);
-    AttachStreamSingle(u_edge_count);
-    AttachStreamSingle(u_prefix_sum);
-    AttachStreamSingle(u_num_unique);
-    AttachStreamSingle(num_oct_nodes_out);
+    ATTACH_STREAM_SINGLE(u_points);
+    ATTACH_STREAM_SINGLE(u_edge_count);
+    ATTACH_STREAM_SINGLE(u_prefix_sum);
+    ATTACH_STREAM_SINGLE(u_num_unique);
+    ATTACH_STREAM_SINGLE(num_oct_nodes_out);
   }
 
   [[nodiscard]] size_t getMemorySize() const {
@@ -129,7 +132,6 @@ std::ostream& operator<<(std::ostream& os, const glm::vec4& v) {
 
 int main(const int argc, const char* argv[]) {
   constexpr auto n = 1920 * 1080;  // 2.0736M
-  constexpr auto educated_guess_n_oct_nodes = 0.6;
   int n_threads = 4;
   int my_num_blocks = 64;
   bool debug_print = false;
@@ -160,14 +162,13 @@ int main(const int argc, const char* argv[]) {
 #pragma omp parallel
   { printf("Hello from thread %d\n", omp_get_thread_num()); }
 
-  AppParams params{
-      .n = n,
-      .min = 0.0f,
-      .max = 1024.0f,
-      .range = 1024.0f,
-      .seed = 114514,
-      .my_num_blocks = my_num_blocks,
-  };
+  AppParams params;
+  params.n = n;
+  params.min = 0.0f;
+  params.max = 1024.0f;
+  params.range = params.max - params.min;
+  params.seed = 114514;
+  params.my_num_blocks = my_num_blocks;
 
   spdlog::info(
       "params: n={}, min={}, max={}, range={}, seed={}, my_num_blocks={}",
@@ -181,7 +182,7 @@ int main(const int argc, const char* argv[]) {
   cudaStream_t stream;
   checkCudaErrors(cudaStreamCreate(&stream));
 
-  auto pipe = std::make_unique<Pipe>(n);
+  const auto pipe = std::make_unique<Pipe>(n);
   pipe->attachStream(stream);
 
   const auto mem_size = pipe->getMemorySize();
@@ -189,7 +190,7 @@ int main(const int argc, const char* argv[]) {
 
   // -----------------------------------------------------------------------
 
-  gpu::Disptach_InitRandomVec4(
+  gpu::Dispatch_InitRandomVec4(
       pipe->u_points, params, params.my_num_blocks, stream);
 
   gpu::Dispatch_MortonCompute(pipe->u_points,
@@ -243,7 +244,7 @@ int main(const int argc, const char* argv[]) {
     // print percentage of oct vs n input. "(xx/yy) = x.xx%"
     const auto safety_ratio = 100.0 * num_oct_nodes / n;
     spdlog::info("({}/{}) = {:.2f}%", num_oct_nodes, n, safety_ratio);
-    if (safety_ratio > 100 * educated_guess_n_oct_nodes) {
+    if (safety_ratio > 100 * kEducatedGuessNumOctNodes) {
       spdlog::error("pre allocated num_oct_nodes is too small");
     }
   }
@@ -267,8 +268,6 @@ int main(const int argc, const char* argv[]) {
 
   gpu::v2::k_LinkLeafNodes_Deps<<<params.my_num_blocks, 768, 0, stream>>>(
       pipe->oct.u_children,
-      pipe->oct.u_corner,
-      pipe->oct.u_cell_size,
       pipe->oct.u_child_leaf_mask /* Leaf Mask */,
       pipe->u_prefix_sum,
       pipe->u_edge_count,
@@ -289,10 +288,10 @@ int main(const int argc, const char* argv[]) {
   // peek 10 oct nodes, cornor, cell_size, parent, child_node_mask
   for (int i = 0; i < 10; i++) {
     std::cout << "oct_nodes[" << i << "]:\n";
-    std::cout << "\tcorner: " << pipe->oct.u_corner[i] << "\n";
-    std::cout << "\tcell_size: " << pipe->oct.u_cell_size[i] << "\n";
-    std::cout << "\tparent: " << pipe->brt.parent[i] << "\n";
-    std::cout << "\tchild_node_mask: " << pipe->oct.u_child_node_mask[i]
+    std::cout << "\t corner: " << pipe->oct.u_corner[i] << "\n";
+    std::cout << "\t cell_size: " << pipe->oct.u_cell_size[i] << "\n";
+    std::cout << "\t parent: " << pipe->brt.parent[i] << "\n";
+    std::cout << "\t child_node_mask: " << pipe->oct.u_child_node_mask[i]
               << "\n\n";
   }
 

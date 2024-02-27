@@ -26,8 +26,6 @@ __global__ void k_MakeOctNodes_Deps(
 __global__ void k_LinkLeafNodes_Deps(
     // --- new parameters
     int (*u_children)[8],
-    glm::vec4* u_corner,
-    float* u_cell_size,
     int* u_child_leaf_mask,
     // --- end new parameters
     const int* node_offsets,
