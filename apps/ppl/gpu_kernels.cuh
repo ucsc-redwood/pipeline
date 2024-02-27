@@ -2,9 +2,11 @@
 
 #include <spdlog/spdlog.h>
 
+#include <utility>
+
 #include "app_params.hpp"
+#include "better_types/one_sweep.cuh"
 #include "cuda/kernels/all.cuh"
-#include "one_sweep.cuh"
 
 /// All Gpu kerenls are wrapped with a 'grid_size' and 'stream' parameter.
 
@@ -14,7 +16,7 @@ inline void Dispatch_InitRandomVec4(glm::vec4* u_data,
                                     const AppParams& params,
                                     // --- new parameters
                                     const int grid_size,
-                                    const cudaStream_t& stream) {
+                                    const cudaStream_t stream) {
   constexpr auto block_size = 768;
 
   spdlog::debug("Dispatching k_InitRandomVec4 with ({} blocks, {} threads)",
@@ -30,7 +32,7 @@ inline void Dispatch_MortonCompute(const glm::vec4* u_points,
                                    const AppParams& params,
                                    // --- new parameters
                                    const int grid_size,
-                                   const cudaStream_t& stream) {
+                                   const cudaStream_t stream) {
   constexpr auto block_size = 768;
 
   spdlog::debug("Dispatching k_ComputeMortonCode with ({} blocks, {} threads)",
@@ -45,7 +47,7 @@ inline void Dispatch_SortKernels(const OneSweep& one_sweep,
                                  const int n,
                                  // --- new parameters
                                  const int grid_size,
-                                 const cudaStream_t& stream) {
+                                 const cudaStream_t stream) {
   constexpr int globalHistThreads = 128;
   constexpr int binningThreads = 512;
 
@@ -116,7 +118,7 @@ inline void Dispatch_CountUnique(unsigned int* keys,
                                  const int n,
                                  // --- new parameters
                                  const int grid_size,
-                                 const cudaStream_t& stream) {
+                                 const cudaStream_t stream) {
   constexpr auto block_size = 768;
 
   spdlog::debug("Dispatching k_CountUnique with ({} blocks, {} threads)",
@@ -135,7 +137,7 @@ inline void Dispatch_BuildRadixTree(const int* num_unique /* addr #unique */,
                                     int* parent,
                                     // --- new parameters
                                     const int grid_size,
-                                    const cudaStream_t& stream) {
+                                    const cudaStream_t stream) {
   constexpr auto block_size = 768;
 
   spdlog::debug("Dispatching k_BuildRadixTree with ({} blocks, {} threads)",
@@ -157,7 +159,7 @@ inline void Dispatch_EdgeCount(const uint8_t* prefix_n,
                                const int* n_unique,  // changed to 'unique'
                                // --- new parameters
                                const int grid_size,
-                               const cudaStream_t& stream) {
+                               const cudaStream_t stream) {
   constexpr auto block_size = 768;
 
   spdlog::debug("Dispatching k_EdgeCount_Deps with ({} blocks, {} threads)",
@@ -168,6 +170,18 @@ inline void Dispatch_EdgeCount(const uint8_t* prefix_n,
       prefix_n, parents, edge_count, n_unique);
 }
 
-void Dispatch_MakeOctree() {}
+template <typename... Args>
+void Dispatch_MakeOctree(Args&&... args,
+                         const int grid_size,
+                         const cudaStream_t stream) {
+  constexpr auto block_size = 768;
+
+  spdlog::debug("Dispatching k_EdgeCount_Deps with ({} blocks, {} threads)",
+                grid_size,
+                block_size);
+
+  v2::k_MakeOctNodes_Deps<<<grid_size, block_size, 0, stream>>>(
+      std::forward<Args>(args)...);
+}
 
 }  // namespace gpu

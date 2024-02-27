@@ -2,7 +2,6 @@
 
 #include "defines.h"
 #include "morton.h"
-// #include "types.h"
 
 namespace shared {
 
@@ -25,12 +24,6 @@ H_D_I void SetLeaf(const int node_idx,
   u_children[node_idx][which_child] = leaf_idx;
   u_child_leaf_mask[node_idx] &= ~(1 << which_child);
 }
-
-// int (*u_children)[8];
-// glm::vec4* u_corner;
-// float* u_cell_size;
-// int* u_child_node_mask;
-// int* u_child_leaf_mask;
 
 // processing for index 'i'
 H_D_I void ProcessOctNode(const int i /*brt node index*/,
@@ -134,16 +127,16 @@ H_D_I void ProcessLinkLeaf(const int i /*brt node index*/,
     auto leaf_level = rt_prefixN[i] / 3 + 1;
     auto leaf_prefix = codes[leaf_idx] >> (morton_bits - (3 * leaf_level));
     auto child_idx = leaf_prefix & 0b111;
+
     // walk up the radix tree until finding a node which contributes an octnode
     auto rt_node = i;
     while (rt_node_counts[rt_node] == 0) {
       rt_node = rt_parents[rt_node];
     }
+
     // the lowest octnode in the string contributed by rt_node will be the
     // lowest index
     auto bottom_oct_idx = node_offsets[rt_node];
-
-    // SetLeaf(&nodes[bottom_oct_idx], child_idx, leaf_idx);
     SetLeaf(bottom_oct_idx, u_children, u_child_leaf_mask, child_idx, leaf_idx);
   }
   if (rt_hasLeafRight[i]) {
@@ -155,10 +148,10 @@ H_D_I void ProcessLinkLeaf(const int i /*brt node index*/,
     while (rt_node_counts[rt_node] == 0) {
       rt_node = rt_parents[rt_node];
     }
+
     // the lowest octnode in the string contributed by rt_node will be the
     // lowest index
     auto bottom_oct_idx = node_offsets[rt_node];
-    // SetLeaf(&nodes[bottom_oct_idx], child_idx, leaf_idx);
     SetLeaf(bottom_oct_idx, u_children, u_child_leaf_mask, child_idx, leaf_idx);
   }
 }

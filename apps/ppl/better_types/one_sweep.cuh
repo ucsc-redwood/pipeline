@@ -1,34 +1,35 @@
 #pragma once
 
+#include "helper.cuh"
+
 // Fixed for 4 passes, 256 radix
 // This is what we care, no need to generalize it
-template <typename T>
-constexpr void MallocManaged(T** ptr, const size_t num_items) {
-  cudaMallocManaged(ptr, num_items * sizeof(T));
-}
-
-#define ATTACH_STREAM_SINGLE(ptr) \
-  cudaStreamAttachMemAsync(stream, ptr, 0, cudaMemAttachSingle)
-
-// Hard coded for 4 passes, 256 threads
+//
 struct OneSweep {
+  static constexpr auto kRadix = 256;
+
   explicit OneSweep(const int n) : n(n) {
     MallocManaged(&u_sort, n);
     MallocManaged(&u_sort_alt, n);
-    MallocManaged(&u_global_histogram, 256 * 4);
+    MallocManaged(&u_global_histogram, kRadix * 4);
     MallocManaged(&u_index, 4);
     for (auto& u_pass_histogram : u_pass_histograms) {
-      MallocManaged(&u_pass_histogram, 256 * binningThreadblocks(n));
+      MallocManaged(&u_pass_histogram, kRadix * binningThreadblocks(n));
     }
   }
 
+  OneSweep(const OneSweep&) = delete;
+  OneSweep& operator=(const OneSweep&) = delete;
+  OneSweep(OneSweep&&) = delete;
+  OneSweep& operator=(OneSweep&&) = delete;
+
   ~OneSweep() {
-    cudaFree(u_sort);
-    cudaFree(u_sort_alt);
-    cudaFree(u_global_histogram);
-    cudaFree(u_index);
+    CUDA_FREE(u_sort);
+    CUDA_FREE(u_sort_alt);
+    CUDA_FREE(u_global_histogram);
+    CUDA_FREE(u_index);
     for (const auto& u_pass_histogram : u_pass_histograms) {
-      cudaFree(u_pass_histogram);
+      CUDA_FREE(u_pass_histogram);
     }
   }
 
@@ -45,13 +46,14 @@ struct OneSweep {
     }
   }
 
+  // for ~2m nodes, its about 16MB
   [[nodiscard]] size_t getMemorySize() const {
     size_t total = 0;
     total += n * sizeof(unsigned int);
     total += n * sizeof(unsigned int);
-    total += 256 * 4 * sizeof(unsigned int);
+    total += kRadix * 4 * sizeof(unsigned int);
     total += 4 * sizeof(unsigned int);
-    total += 4 * 256 * binningThreadblocks(n) * sizeof(unsigned int);
+    total += 4 * kRadix * binningThreadblocks(n) * sizeof(unsigned int);
     return total;
   }
 

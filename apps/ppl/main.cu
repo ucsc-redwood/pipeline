@@ -6,126 +6,14 @@
 #include <iostream>
 
 #include "app_params.hpp"
-#include "better_oct.cuh"
+#include "better_types/pipe.cuh"
 #include "cuda/common/helper_cuda.hpp"
 #include "gpu_kernels.cuh"
 #include "shared/morton.h"
-#include "shared/oct_v2.h"
 
 constexpr auto kEducatedGuessNumOctNodes = 0.6;
 
-struct RadixTree {
-  explicit RadixTree(const int n) : n_nodes(n) {
-    MallocManaged(&prefixN, n);
-    MallocManaged(&hasLeafLeft, n);
-    MallocManaged(&hasLeafRight, n);
-    MallocManaged(&leftChild, n);
-    MallocManaged(&parent, n);
-  }
-
-  ~RadixTree() {
-    cudaFree(prefixN);
-    cudaFree(hasLeafLeft);
-    cudaFree(hasLeafRight);
-    cudaFree(leftChild);
-    cudaFree(parent);
-  }
-
-  void attachStream(const cudaStream_t stream) const {
-    ATTACH_STREAM_SINGLE(prefixN);
-    ATTACH_STREAM_SINGLE(hasLeafLeft);
-    ATTACH_STREAM_SINGLE(hasLeafRight);
-    ATTACH_STREAM_SINGLE(leftChild);
-    ATTACH_STREAM_SINGLE(parent);
-  }
-
-  [[nodiscard]] size_t getMemorySize() const {
-    size_t total = 0;
-    total += n_nodes * sizeof(uint8_t);
-    total += n_nodes * sizeof(bool);
-    total += n_nodes * sizeof(bool);
-    total += n_nodes * sizeof(int);
-    total += n_nodes * sizeof(int);
-    return total;
-  }
-
-  [[nodiscard]] int getNumNodes() const { return n_nodes; }
-
-  const int n_nodes;
-  uint8_t* prefixN;
-  bool* hasLeafLeft;
-  bool* hasLeafRight;
-  int* leftChild;
-  int* parent;
-};
-
-// We need to assume n != #unique
-struct Pipe {
-  explicit Pipe(const int n)
-      : one_sweep(n), brt(n), oct(kEducatedGuessNumOctNodes * n), n(n) {
-    MallocManaged(&u_points, n);
-    MallocManaged(&u_edge_count, n);
-    MallocManaged(&u_prefix_sum, n);
-    MallocManaged(&u_num_unique, 1);
-    MallocManaged(&num_oct_nodes_out, 1);
-  }
-
-  ~Pipe() {
-    cudaFree(u_points);
-    cudaFree(u_edge_count);
-    cudaFree(u_prefix_sum);
-    cudaFree(u_num_unique);
-    cudaFree(num_oct_nodes_out);
-  }
-
-  void attachStream(const cudaStream_t stream) {
-    one_sweep.attachStream(stream);
-    brt.attachStream(stream);
-    oct.attachStream(stream);
-    ATTACH_STREAM_SINGLE(u_points);
-    ATTACH_STREAM_SINGLE(u_edge_count);
-    ATTACH_STREAM_SINGLE(u_prefix_sum);
-    ATTACH_STREAM_SINGLE(u_num_unique);
-    ATTACH_STREAM_SINGLE(num_oct_nodes_out);
-  }
-
-  [[nodiscard]] size_t getMemorySize() const {
-    size_t total = 0;
-    total += n * sizeof(glm::vec4);
-    total += n * sizeof(int);
-    total += n * sizeof(int);
-    total += sizeof(int);
-    total += one_sweep.getMemorySize();
-    total += brt.getMemorySize();
-    total += oct.getMemorySize();
-    return total;
-  }
-
-  [[nodiscard]] int getNumPoints() const { return n; }
-  [[nodiscard]] int getNumUnique_unsafe() const { return *u_num_unique; }
-  [[nodiscard]] int getNumBrtNodes_unsafe() const {
-    return getNumUnique_unsafe() - 1;
-  }
-  [[nodiscard]] const unsigned int* getMortonKeys() const {
-    return one_sweep.u_sort;
-  }
-
-  glm::vec4* u_points;
-  OneSweep one_sweep;
-  RadixTree brt;
-  int* u_edge_count;
-  int* u_prefix_sum;
-  OctNodes_better oct;
-
-  const int n;
-  // unfortunately, we need to use a pointer here, because these values depend
-  // on the computation resutls
-  int* u_num_unique;
-  int* num_oct_nodes_out;
-};
-
-// write a ostream function for glm::vec4
-std::ostream& operator<<(std::ostream& os, const glm::vec4& v) {
+[[nodiscard]] std::ostream& operator<<(std::ostream& os, const glm::vec4& v) {
   os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
   return os;
 }
@@ -156,6 +44,12 @@ int main(const int argc, const char* argv[]) {
   if (debug_print) {
     spdlog::set_level(spdlog::level::debug);
   }
+
+#ifdef NDEBUG
+  spdlog::debug("NDEBUG is defined");
+#else
+  spdlog::debug("NDEBUG is not defined");
+#endif
 
   omp_set_num_threads(n_threads);
 
@@ -231,6 +125,54 @@ int main(const int argc, const char* argv[]) {
                       pipe->u_edge_count + pipe->getNumUnique_unsafe(),
                       pipe->u_prefix_sum);
 
+  // gpu::v2::k_MakeOctNodes_Deps<<<params.my_num_blocks, 768, 0, stream>>>(
+  //     pipe->oct.u_children,
+  //     pipe->oct.u_corner,
+  //     pipe->oct.u_cell_size,
+  //     pipe->oct.u_child_node_mask /* Node Mask */,
+  //     pipe->u_prefix_sum,
+  //     pipe->u_edge_count,
+  //     pipe->one_sweep.getSort(),
+  //     pipe->brt.prefixN,
+  //     pipe->brt.parent,
+  //     params.min,
+  //     params.range,
+  //     pipe->u_num_unique);
+
+  gpu::Dispatch_MakeOctree(pipe->oct.u_children,
+                           pipe->oct.u_corner,
+                           pipe->oct.u_cell_size,
+                           pipe->oct.u_child_node_mask /* Node Mask */,
+                           pipe->u_prefix_sum,
+                           pipe->u_edge_count,
+                           pipe->one_sweep.getSort(),
+                           pipe->brt.prefixN,
+                           pipe->brt.parent,
+                           params.min,
+                           params.range,
+                           pipe->u_num_unique,
+                           params.my_num_blocks,
+                           stream);
+
+  // gpu::v2::k_LinkLeafNodes_Deps<<<params.my_num_blocks, 768, 0, stream>>>(
+  //     pipe->oct.u_children,
+  //     pipe->oct.u_child_leaf_mask /* Leaf Mask */,
+  //     pipe->u_prefix_sum,
+  //     pipe->u_edge_count,
+  //     pipe->one_sweep.getSort(),
+  //     pipe->brt.hasLeafLeft,
+  //     pipe->brt.hasLeafRight,
+  //     pipe->brt.prefixN,
+  //     pipe->brt.parent,
+  //     pipe->brt.leftChild,
+  //     pipe->u_num_unique);
+
+  checkCudaErrors(cudaStreamSynchronize(stream));
+
+  // -----------------------------------------------------------------------
+
+  spdlog::info("pipe->getNumUnique_unsafe() = {}", pipe->getNumUnique_unsafe());
+
   {
     // peek 10 prefix sum
     for (int i = 0; i < 10; i++) {
@@ -248,42 +190,6 @@ int main(const int argc, const char* argv[]) {
       spdlog::error("pre allocated num_oct_nodes is too small");
     }
   }
-
-  // -----------------------------------------------------------------------
-  // tmp
-
-  gpu::v2::k_MakeOctNodes_Deps<<<params.my_num_blocks, 768, 0, stream>>>(
-      pipe->oct.u_children,
-      pipe->oct.u_corner,
-      pipe->oct.u_cell_size,
-      pipe->oct.u_child_node_mask /* Node Mask */,
-      pipe->u_prefix_sum,
-      pipe->u_edge_count,
-      pipe->one_sweep.getSort(),
-      pipe->brt.prefixN,
-      pipe->brt.parent,
-      params.min,
-      params.range,
-      pipe->u_num_unique);
-
-  gpu::v2::k_LinkLeafNodes_Deps<<<params.my_num_blocks, 768, 0, stream>>>(
-      pipe->oct.u_children,
-      pipe->oct.u_child_leaf_mask /* Leaf Mask */,
-      pipe->u_prefix_sum,
-      pipe->u_edge_count,
-      pipe->one_sweep.getSort(),
-      pipe->brt.hasLeafLeft,
-      pipe->brt.hasLeafRight,
-      pipe->brt.prefixN,
-      pipe->brt.parent,
-      pipe->brt.leftChild,
-      pipe->u_num_unique);
-
-  checkCudaErrors(cudaStreamSynchronize(stream));
-
-  // -----------------------------------------------------------------------
-
-  spdlog::info("pipe->getNumUnique_unsafe() = {}", pipe->getNumUnique_unsafe());
 
   // peek 10 oct nodes, cornor, cell_size, parent, child_node_mask
   for (int i = 0; i < 10; i++) {
