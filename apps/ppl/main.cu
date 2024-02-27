@@ -63,7 +63,6 @@ struct Pipe {
     MallocManaged(&u_points, n);
     MallocManaged(&u_edge_count, n);
     MallocManaged(&u_prefix_sum, n);
-    // MallocManaged(&u_oct_nodes, n);
     MallocManaged(&u_num_unique, 1);
     MallocManaged(&num_oct_nodes_out, 1);
   }
@@ -72,7 +71,6 @@ struct Pipe {
     cudaFree(u_points);
     cudaFree(u_edge_count);
     cudaFree(u_prefix_sum);
-    // cudaFree(u_oct_nodes);
     cudaFree(u_num_unique);
     cudaFree(num_oct_nodes_out);
   }
@@ -84,7 +82,6 @@ struct Pipe {
     AttachStreamSingle(u_points);
     AttachStreamSingle(u_edge_count);
     AttachStreamSingle(u_prefix_sum);
-    // AttachStreamSingle(u_oct_nodes);
     AttachStreamSingle(u_num_unique);
     AttachStreamSingle(num_oct_nodes_out);
   }
@@ -94,7 +91,6 @@ struct Pipe {
     total += n * sizeof(glm::vec4);
     total += n * sizeof(int);
     total += n * sizeof(int);
-    // total += n * sizeof(OctNode);
     total += sizeof(int);
     total += one_sweep.getMemorySize();
     total += brt.getMemorySize();
@@ -117,8 +113,6 @@ struct Pipe {
   int* u_edge_count;
   int* u_prefix_sum;
   OctNodes_better oct;
-
-  // OctNode* u_oct_nodes;
 
   const int n;
   // unfortunately, we need to use a pointer here, because these values depend
@@ -212,9 +206,6 @@ int main(const int argc, const char* argv[]) {
                             params.my_num_blocks,
                             stream);
 
-  checkCudaErrors(cudaStreamSynchronize(stream));
-  spdlog::info("pipe->getNumUnique_unsafe() = {}", pipe->getNumUnique_unsafe());
-
   gpu::Dispatch_BuildRadixTree(pipe->u_num_unique,
                                pipe->one_sweep.getSort(),
                                pipe->brt.prefixN,
@@ -239,40 +230,32 @@ int main(const int argc, const char* argv[]) {
                       pipe->u_edge_count + pipe->getNumUnique_unsafe(),
                       pipe->u_prefix_sum);
 
-  // peek 10 prefix sum
-  for (int i = 0; i < 10; i++) {
-    spdlog::debug("u_prefix_sum[{}] = {}", i, pipe->u_prefix_sum[i]);
-  }
+  {
+    // peek 10 prefix sum
+    for (int i = 0; i < 10; i++) {
+      spdlog::debug("u_prefix_sum[{}] = {}", i, pipe->u_prefix_sum[i]);
+    }
 
-  const auto num_oct_nodes = pipe->u_prefix_sum[pipe->getNumBrtNodes_unsafe()];
-  spdlog::info("num_oct_nodes = {}", num_oct_nodes);
+    const auto num_oct_nodes =
+        pipe->u_prefix_sum[pipe->getNumBrtNodes_unsafe()];
+    spdlog::info("num_oct_nodes = {}", num_oct_nodes);
 
-  // print percentage of oct vs n input. "(xx/yy) = x.xx%"
-  const auto safety_ratio = 100.0 * num_oct_nodes / n;
-  spdlog::info("({}/{}) = {:.2f}%", num_oct_nodes, n, safety_ratio);
-  if (safety_ratio > 100 * educated_guess_n_oct_nodes) {
-    spdlog::error("pre allocated num_oct_nodes is too small");
+    // print percentage of oct vs n input. "(xx/yy) = x.xx%"
+    const auto safety_ratio = 100.0 * num_oct_nodes / n;
+    spdlog::info("({}/{}) = {:.2f}%", num_oct_nodes, n, safety_ratio);
+    if (safety_ratio > 100 * educated_guess_n_oct_nodes) {
+      spdlog::error("pre allocated num_oct_nodes is too small");
+    }
   }
 
   // -----------------------------------------------------------------------
   // tmp
 
-  const auto root_level = pipe->brt.prefixN[0] / 3;
-  const auto root_prefix =
-      pipe->getMortonKeys()[0] >> (morton_bits - (3 * root_level));
-
-  // compute root's corner
-  shared::morton32_to_xyz(&pipe->oct.u_corner[0],
-                          root_prefix << (morton_bits - (3 * root_level)),
-                          params.min,
-                          params.range);
-  pipe->oct.u_cell_size[0] = params.range;
-
   gpu::v2::k_MakeOctNodes_Deps<<<params.my_num_blocks, 768, 0, stream>>>(
       pipe->oct.u_children,
       pipe->oct.u_corner,
       pipe->oct.u_cell_size,
-      pipe->oct.u_child_node_mask,
+      pipe->oct.u_child_node_mask /* Node Mask */,
       pipe->u_prefix_sum,
       pipe->u_edge_count,
       pipe->one_sweep.getSort(),
@@ -281,7 +264,27 @@ int main(const int argc, const char* argv[]) {
       params.min,
       params.range,
       pipe->u_num_unique);
+
+  gpu::v2::k_LinkLeafNodes_Deps<<<params.my_num_blocks, 768, 0, stream>>>(
+      pipe->oct.u_children,
+      pipe->oct.u_corner,
+      pipe->oct.u_cell_size,
+      pipe->oct.u_child_leaf_mask /* Leaf Mask */,
+      pipe->u_prefix_sum,
+      pipe->u_edge_count,
+      pipe->one_sweep.getSort(),
+      pipe->brt.hasLeafLeft,
+      pipe->brt.hasLeafRight,
+      pipe->brt.prefixN,
+      pipe->brt.parent,
+      pipe->brt.leftChild,
+      pipe->u_num_unique);
+
   checkCudaErrors(cudaStreamSynchronize(stream));
+
+  // -----------------------------------------------------------------------
+
+  spdlog::info("pipe->getNumUnique_unsafe() = {}", pipe->getNumUnique_unsafe());
 
   // peek 10 oct nodes, cornor, cell_size, parent, child_node_mask
   for (int i = 0; i < 10; i++) {
@@ -292,8 +295,6 @@ int main(const int argc, const char* argv[]) {
     std::cout << "\tchild_node_mask: " << pipe->oct.u_child_node_mask[i]
               << "\n\n";
   }
-
-  // -----------------------------------------------------------------------
 
   checkCudaErrors(cudaStreamDestroy(stream));
   return 0;

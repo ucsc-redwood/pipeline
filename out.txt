@@ -1,32 +1,32 @@
-[2024-02-27 09:53:18.247] [info] n = 2073600
-[2024-02-27 09:53:18.247] [info] n_threads = 4
-[2024-02-27 09:53:18.247] [info] my_num_blocks = 64
-Hello from thread 0
-Hello from thread 3
-Hello from thread 1
+[2024-02-27 10:22:41.429] [info] n = 2073600
+[2024-02-27 10:22:41.429] [info] n_threads = 4
+[2024-02-27 10:22:41.429] [info] my_num_blocks = 64
 Hello from thread 2
-[2024-02-27 09:53:18.248] [info] params: n=2073600, min=0, max=1024, range=1024, seed=114514, my_num_blocks=64
-[2024-02-27 09:53:18.509] [info] Pipe Memory size: 157 MB
-[2024-02-27 09:53:18.509] [debug] Dispatching k_InitRandomVec4 with (64 blocks, 768 threads)
-[2024-02-27 09:53:18.510] [debug] Dispatching k_ComputeMortonCode with (64 blocks, 768 threads)
-[2024-02-27 09:53:18.510] [debug] Dispatching k_GlobalHistogram_WithLogicalBlocks with (64 blocks, 128 threads)
-[2024-02-27 09:53:18.510] [debug] Dispatching k_DigitBinning_WithLogicalBlocks with (64 blocks, 512 threads)
-[2024-02-27 09:53:18.510] [debug] Dispatching k_CountUnique with (64 blocks, 768 threads)
-[2024-02-27 09:53:18.605] [info] pipe->getNumUnique_unsafe() = 2071595
-[2024-02-27 09:53:18.605] [debug] Dispatching k_BuildRadixTree with (64 blocks, 768 threads)
-[2024-02-27 09:53:18.605] [debug] Dispatching k_EdgeCount_Deps with (64 blocks, 768 threads)
-[2024-02-27 09:53:18.609] [debug] u_prefix_sum[0] = 0
-[2024-02-27 09:53:18.609] [debug] u_prefix_sum[1] = 2
-[2024-02-27 09:53:18.609] [debug] u_prefix_sum[2] = 3
-[2024-02-27 09:53:18.609] [debug] u_prefix_sum[3] = 3
-[2024-02-27 09:53:18.609] [debug] u_prefix_sum[4] = 3
-[2024-02-27 09:53:18.609] [debug] u_prefix_sum[5] = 3
-[2024-02-27 09:53:18.609] [debug] u_prefix_sum[6] = 4
-[2024-02-27 09:53:18.609] [debug] u_prefix_sum[7] = 4
-[2024-02-27 09:53:18.609] [debug] u_prefix_sum[8] = 4
-[2024-02-27 09:53:18.609] [debug] u_prefix_sum[9] = 4
-[2024-02-27 09:53:18.609] [info] num_oct_nodes = 1014051
-[2024-02-27 09:53:18.609] [info] (1014051/2073600) = 48.90%
+Hello from thread 3
+Hello from thread 0
+Hello from thread 1
+[2024-02-27 10:22:41.429] [info] params: n=2073600, min=0, max=1024, range=1024, seed=114514, my_num_blocks=64
+[2024-02-27 10:22:41.697] [info] Pipe Memory size: 157 MB
+[2024-02-27 10:22:41.697] [debug] Dispatching k_InitRandomVec4 with (64 blocks, 768 threads)
+[2024-02-27 10:22:41.698] [debug] Dispatching k_ComputeMortonCode with (64 blocks, 768 threads)
+[2024-02-27 10:22:41.698] [debug] Dispatching k_GlobalHistogram_WithLogicalBlocks with (64 blocks, 128 threads)
+[2024-02-27 10:22:41.698] [debug] Dispatching k_DigitBinning_WithLogicalBlocks with (64 blocks, 512 threads)
+[2024-02-27 10:22:41.698] [debug] Dispatching k_CountUnique with (64 blocks, 768 threads)
+[2024-02-27 10:22:41.781] [info] pipe->getNumUnique_unsafe() = 2071595
+[2024-02-27 10:22:41.781] [debug] Dispatching k_BuildRadixTree with (64 blocks, 768 threads)
+[2024-02-27 10:22:41.781] [debug] Dispatching k_EdgeCount_Deps with (64 blocks, 768 threads)
+[2024-02-27 10:22:41.784] [debug] u_prefix_sum[0] = 0
+[2024-02-27 10:22:41.784] [debug] u_prefix_sum[1] = 2
+[2024-02-27 10:22:41.784] [debug] u_prefix_sum[2] = 3
+[2024-02-27 10:22:41.784] [debug] u_prefix_sum[3] = 3
+[2024-02-27 10:22:41.784] [debug] u_prefix_sum[4] = 3
+[2024-02-27 10:22:41.784] [debug] u_prefix_sum[5] = 3
+[2024-02-27 10:22:41.784] [debug] u_prefix_sum[6] = 4
+[2024-02-27 10:22:41.784] [debug] u_prefix_sum[7] = 4
+[2024-02-27 10:22:41.784] [debug] u_prefix_sum[8] = 4
+[2024-02-27 10:22:41.784] [debug] u_prefix_sum[9] = 4
+[2024-02-27 10:22:41.784] [info] num_oct_nodes = 1014051
+[2024-02-27 10:22:41.784] [info] (1014051/2073600) = 48.90%
 oct_nodes[0]:
 	corner: (0, 0, 0, 1)
 	cell_size: 1024
