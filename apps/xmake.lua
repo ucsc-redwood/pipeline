@@ -5,4 +5,3 @@ includes("cpu_demo")
 includes("gpu_demo")
 includes("ppl")
 
-includes("tmp")

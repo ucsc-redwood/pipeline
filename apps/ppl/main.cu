@@ -10,13 +10,113 @@
 #include "kernels/all.hpp"
 #include "shared/types.h"
 
-namespace {
+struct RadixTree {
+  explicit RadixTree(const int n) : n_nodes(n) {
+    MallocManaged(&prefixN, n);
+    MallocManaged(&hasLeafLeft, n);
+    MallocManaged(&hasLeafRight, n);
+    MallocManaged(&leftChild, n);
+    MallocManaged(&parent, n);
+  }
 
-void k_StdSort(unsigned int* u_data, const int n) {
-  std::sort(u_data, u_data + n);
-}
+  ~RadixTree() {
+    cudaFree(prefixN);
+    cudaFree(hasLeafLeft);
+    cudaFree(hasLeafRight);
+    cudaFree(leftChild);
+    cudaFree(parent);
+  }
 
-}  // namespace
+  void attachStream(cudaStream_t& stream) {
+    AttachStreamSingle(prefixN);
+    AttachStreamSingle(hasLeafLeft);
+    AttachStreamSingle(hasLeafRight);
+    AttachStreamSingle(leftChild);
+    AttachStreamSingle(parent);
+  }
+
+  [[nodiscard]] size_t getMemorySize() const {
+    size_t total = 0;
+    total += n_nodes * sizeof(uint8_t);
+    total += n_nodes * sizeof(bool);
+    total += n_nodes * sizeof(bool);
+    total += n_nodes * sizeof(int);
+    total += n_nodes * sizeof(int);
+    return total;
+  }
+
+  [[nodiscard]] int getNumNodes() const { return n_nodes; }
+
+  const int n_nodes;
+  uint8_t* prefixN;
+  bool* hasLeafLeft;
+  bool* hasLeafRight;
+  int* leftChild;
+  int* parent;
+};
+
+// We need to assume n != #unique
+struct Pipe {
+  explicit Pipe(const int n) : n(n), one_sweep(n), brt(n) {
+    MallocManaged(&u_points, n);
+    MallocManaged(&u_edge_count, n);
+    MallocManaged(&u_prefix_sum, n);
+    MallocManaged(&u_oct_nodes, n);
+    MallocManaged(&u_num_unique, 1);
+    MallocManaged(&num_oct_nodes_out, 1);
+  }
+
+  ~Pipe() {
+    cudaFree(u_points);
+    cudaFree(u_edge_count);
+    cudaFree(u_prefix_sum);
+    cudaFree(u_oct_nodes);
+    cudaFree(u_num_unique);
+    cudaFree(num_oct_nodes_out);
+  }
+
+  void attachStream(cudaStream_t& stream) {
+    one_sweep.attachStream(stream);
+    brt.attachStream(stream);
+    AttachStreamSingle(u_points);
+    AttachStreamSingle(u_edge_count);
+    AttachStreamSingle(u_prefix_sum);
+    AttachStreamSingle(u_oct_nodes);
+    AttachStreamSingle(u_num_unique);
+    AttachStreamSingle(num_oct_nodes_out);
+  }
+
+  [[nodiscard]] size_t getMemorySize() const {
+    size_t total = 0;
+    total += n * sizeof(glm::vec4);
+    total += n * sizeof(int);
+    total += n * sizeof(int);
+    total += n * sizeof(OctNode);
+    total += sizeof(int);
+    total += one_sweep.getMemorySize();
+    total += brt.getMemorySize();
+    return total;
+  }
+
+  [[nodiscard]] int getNumPoints() const { return n; }
+  [[nodiscard]] int getNumUnique_unsafe() const { return *u_num_unique; }
+  [[nodiscard]] int getNumBrtNodes_unsafe() const {
+    return getNumUnique_unsafe() - 1;
+  }
+
+  glm::vec4* u_points;
+  OneSweep one_sweep;
+  RadixTree brt;
+  int* u_edge_count;
+  int* u_prefix_sum;
+  OctNode* u_oct_nodes;
+
+  const int n;
+  // unfortunately, we need to use a pointer here, because these values depend
+  // on the computation resutls
+  int* u_num_unique;
+  int* num_oct_nodes_out;
+};
 
 int main(const int argc, const char* argv[]) {
   constexpr auto n = 1920 * 1080;  // 2.0736M
@@ -59,7 +159,6 @@ int main(const int argc, const char* argv[]) {
       .my_num_blocks = my_num_blocks,
   };
 
-  // spdlog all params in one line
   spdlog::info(
       "params: n={}, min={}, max={}, range={}, seed={}, my_num_blocks={}",
       params.n,
@@ -69,57 +168,65 @@ int main(const int argc, const char* argv[]) {
       params.seed,
       params.my_num_blocks);
 
-  glm::vec4* u_points;
-  cudaMallocManaged(&u_points, n * sizeof(glm::vec4));
-
   cudaStream_t stream;
   cudaStreamCreate(&stream);
 
-  auto one_sweep = OneSweep(n);
-  one_sweep.attachStream(stream);
+  auto pipe = std::make_unique<Pipe>(n);
+  pipe->attachStream(stream);
 
-  auto mem_size = one_sweep.getMemorySize();
-  spdlog::info("Onesweep Memory size: {} MB", mem_size / 1024 / 1024);
-
-  int* num_unique_out;
-  cudaMallocManaged(&num_unique_out, sizeof(int));
+  const auto mem_size = pipe->getMemorySize();
+  spdlog::info("Pipe Memory size: {} MB", mem_size / 1024 / 1024);
 
   // -----------------------------------------------------------------------
 
-  gpu::Disptach_InitRandomVec4(u_points, params, params.my_num_blocks, stream);
+  gpu::Disptach_InitRandomVec4(
+      pipe->u_points, params, params.my_num_blocks, stream);
 
-  gpu::Dispatch_MortonCompute(
-      u_points, one_sweep.getSort(), params, params.my_num_blocks, stream);
+  gpu::Dispatch_MortonCompute(pipe->u_points,
+                              pipe->one_sweep.getSort(),
+                              params,
+                              params.my_num_blocks,
+                              stream);
 
-  gpu::Dispatch_SortKernels(one_sweep, n, params.my_num_blocks, stream);
+  gpu::Dispatch_SortKernels(pipe->one_sweep, n, params.my_num_blocks, stream);
 
-  gpu::Dispatch_CountUnique(
-      one_sweep.getSort(), num_unique_out, n, params.my_num_blocks, stream);
+  gpu::Dispatch_CountUnique(pipe->one_sweep.getSort(),
+                            pipe->u_num_unique,
+                            n,
+                            params.my_num_blocks,
+                            stream);
+
+  gpu::Dispatch_BuildRadixTree(pipe->u_num_unique,
+                               pipe->one_sweep.getSort(),
+                               pipe->brt.prefixN,
+                               pipe->brt.hasLeafLeft,
+                               pipe->brt.hasLeafRight,
+                               pipe->brt.leftChild,
+                               pipe->brt.parent,
+                               params.my_num_blocks,
+                               stream);
+
+  gpu::Dispatch_EdgeCount(pipe->brt.prefixN,
+                          pipe->brt.parent,
+                          pipe->u_edge_count,
+                          pipe->u_num_unique,
+                          params.my_num_blocks,
+                          stream);
 
   cudaDeviceSynchronize();
 
   // -----------------------------------------------------------------------
 
-  // // peek 10 sort
+  spdlog::info("pipe->getNumUnique_unsafe() = {}", pipe->getNumUnique_unsafe());
   // for (int i = 0; i < 10; i++) {
-  //   spdlog::info("u_sort[{}] = {}", i, one_sweep.getSort()[i]);
+  //   spdlog::debug("prefixN[{}] = {}", i, pipe->brt.prefixN[i]);
   // }
 
-  // auto is_sorted = std::is_sorted(one_sweep.getSort(), one_sweep.getSort() +
-  // n); spdlog::info("is_sorted = {}", is_sorted);
+  // peek 10 edge count
 
-  // // find where it was not sorted
-  // if (!is_sorted) {
-  //   for (int i = 0; i < n - 1; i++) {
-  //     if (one_sweep.getSort()[i] > one_sweep.getSort()[i + 1]) {
-  //       spdlog::info("u_sort[{}] = {}", i, one_sweep.getSort()[i]);
-  //       spdlog::info("u_sort[{}] = {}", i + 1, one_sweep.getSort()[i + 1]);
-  //       // break;
-  //     }
-  //   }
-  // }
-
-  cudaFree(u_points);
+  for (int i = 0; i < 10; i++) {
+    spdlog::debug("u_edge_count[{}] = {}", i, pipe->u_edge_count[i]);
+  }
 
   cudaStreamDestroy(stream);
   return 0;

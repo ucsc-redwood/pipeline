@@ -70,15 +70,10 @@ struct OneSweep {
     return (size + globalHistPartitionSize - 1) / globalHistPartitionSize;
   }
 
-  int n;
+  const int n;
   unsigned int* u_sort;
   unsigned int* u_sort_alt;
   unsigned int* u_global_histogram;
   unsigned int* u_index;
   unsigned int* u_pass_histograms[4];
-
-  // friend void gpu::Dispatch_SortKernels(OneSweep& one_sweep,
-  //                                       int n,
-  //                                       int grid_size,
-  //                                       const cudaStream_t& stream);
 };

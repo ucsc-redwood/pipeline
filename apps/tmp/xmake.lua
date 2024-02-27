@@ -1,6 +1,0 @@
-target("tmp")
-    set_kind("binary")
-    add_includedirs("$(projectdir)/include")
-    add_files("*.cu")
-    add_cugencodes("native")
-    add_deps("gpu_kernels")

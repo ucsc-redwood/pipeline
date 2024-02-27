@@ -134,4 +134,28 @@ __global__ void k_BuildRadixTree(const int n /* n_pts */,
   }
 }
 
+__global__ void k_BuildRadixTree_Deps(const int* n_unique,
+                                      const unsigned int* codes,
+                                      uint8_t* prefix_n,
+                                      bool* has_leaf_left,
+                                      bool* has_leaf_right,
+                                      int* left_child,
+                                      int* parent) {
+  const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
+  const auto stride = blockDim.x * gridDim.x;
+
+  const auto n = *n_unique - 1;  // we handle the -1 here
+
+  for (auto i = idx; i < n; i += stride) {
+    ProcessRadixTreeNode(i,
+                         n,
+                         codes,
+                         prefix_n,
+                         has_leaf_left,
+                         has_leaf_right,
+                         left_child,
+                         parent);
+  }
+}
+
 }  // namespace gpu
