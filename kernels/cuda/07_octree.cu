@@ -2,11 +2,20 @@
 
 #include "cuda/kernels/07_octree.cuh"
 #include "shared/oct.h"
+#include "shared/oct_v2.h"
 
 namespace gpu {
 
-[[deprecated]] __global__ void k_MakeOctNodes(
-    OctNode* oct_nodes,
+namespace v2 {
+
+__global__ void k_MakeOctNodes_Deps(
+    // --- new parameters
+    int (*u_children)[8],
+    glm::vec4* u_corner,
+    float* u_cell_size,
+    int* u_child_node_mask,
+    // [[maybe_unused]] int* u_child_leaf_mask,
+    // --- end new parameters
     const int* node_offsets,    // prefix sum
     const int* rt_node_counts,  // edge count
     const unsigned int* codes,
@@ -14,8 +23,44 @@ namespace gpu {
     const int* rt_parents,
     const float min_coord,
     const float range,
-    const int N  // number of brt nodes
-) {
+    // const int N /* number of brt nodes */
+    const int* u_num_unique) {
+  const auto N = *u_num_unique - 1;
+
+  const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
+  const auto stride = blockDim.x * gridDim.x;
+  // i > 0 && i < N
+  for (auto i = idx; i < N; i += stride) {
+    if (i == 0) {
+      continue;
+    }
+    shared::v2::ProcessOctNode(i,
+                               u_children,
+                               u_corner,
+                               u_cell_size,
+                               u_child_node_mask,
+                               node_offsets,
+                               rt_node_counts,
+                               codes,
+                               rt_prefixN,
+                               rt_parents,
+                               min_coord,
+                               range,
+                               N);
+  }
+}
+
+}  // namespace v2
+
+__global__ void k_MakeOctNodes(OctNode* oct_nodes,
+                               const int* node_offsets,    // prefix sum
+                               const int* rt_node_counts,  // edge count
+                               const unsigned int* codes,
+                               const uint8_t* rt_prefixN,
+                               const int* rt_parents,
+                               const float min_coord,
+                               const float range,
+                               const int N /* number of brt nodes */) {
   const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
   const auto stride = blockDim.x * gridDim.x;
 
@@ -38,16 +83,16 @@ namespace gpu {
   }
 }
 
-[[deprecated]] __global__ void k_LinkLeafNodes(OctNode* nodes,
-                                               const int* node_offsets,
-                                               const int* rt_node_counts,
-                                               const unsigned int* codes,
-                                               const bool* rt_hasLeafLeft,
-                                               const bool* rt_hasLeafRight,
-                                               const uint8_t* rt_prefixN,
-                                               const int* rt_parents,
-                                               const int* rt_leftChild,
-                                               const int N) {
+__global__ void k_LinkLeafNodes(OctNode* nodes,
+                                const int* node_offsets,
+                                const int* rt_node_counts,
+                                const unsigned int* codes,
+                                const bool* rt_hasLeafLeft,
+                                const bool* rt_hasLeafRight,
+                                const uint8_t* rt_prefixN,
+                                const int* rt_parents,
+                                const int* rt_leftChild,
+                                const int N) {
   const auto idx = threadIdx.x + blockDim.x * blockIdx.x;
   const auto stride = blockDim.x * gridDim.x;
 

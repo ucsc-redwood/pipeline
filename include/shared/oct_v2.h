@@ -39,7 +39,7 @@ H_D_I void ProcessOctNode(const int i /*brt node index*/,
                           glm::vec4* u_corner,
                           float* u_cell_size,
                           int* u_child_node_mask,
-                          [[maybe_unused]] int* u_child_leaf_mask,
+                          // [[maybe_unused]] int* u_child_leaf_mask,
                           // --------------------------
                           const int* node_offsets,    // prefix sum
                           const int* rt_node_counts,  // edge count

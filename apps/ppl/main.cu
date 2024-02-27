@@ -127,6 +127,12 @@ struct Pipe {
   int* num_oct_nodes_out;
 };
 
+// write a ostream function for glm::vec4
+std::ostream& operator<<(std::ostream& os, const glm::vec4& v) {
+  os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
+  return os;
+}
+
 int main(const int argc, const char* argv[]) {
   constexpr auto n = 1920 * 1080;  // 2.0736M
   constexpr auto educated_guess_n_oct_nodes = 0.6;
@@ -262,10 +268,33 @@ int main(const int argc, const char* argv[]) {
                           params.range);
   pipe->oct.u_cell_size[0] = params.range;
 
-  gpu::k_
+  gpu::v2::k_MakeOctNodes_Deps<<<params.my_num_blocks, 768, 0, stream>>>(
+      pipe->oct.u_children,
+      pipe->oct.u_corner,
+      pipe->oct.u_cell_size,
+      pipe->oct.u_child_node_mask,
+      pipe->u_prefix_sum,
+      pipe->u_edge_count,
+      pipe->one_sweep.getSort(),
+      pipe->brt.prefixN,
+      pipe->brt.parent,
+      params.min,
+      params.range,
+      pipe->u_num_unique);
+  checkCudaErrors(cudaStreamSynchronize(stream));
 
-      // -----------------------------------------------------------------------
+  // peek 10 oct nodes, cornor, cell_size, parent, child_node_mask
+  for (int i = 0; i < 10; i++) {
+    std::cout << "oct_nodes[" << i << "]:\n";
+    std::cout << "\tcorner: " << pipe->oct.u_corner[i] << "\n";
+    std::cout << "\tcell_size: " << pipe->oct.u_cell_size[i] << "\n";
+    std::cout << "\tparent: " << pipe->brt.parent[i] << "\n";
+    std::cout << "\tchild_node_mask: " << pipe->oct.u_child_node_mask[i]
+              << "\n\n";
+  }
 
-      checkCudaErrors(cudaStreamDestroy(stream));
+  // -----------------------------------------------------------------------
+
+  checkCudaErrors(cudaStreamDestroy(stream));
   return 0;
 }
