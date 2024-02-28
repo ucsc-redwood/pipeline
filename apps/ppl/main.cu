@@ -84,6 +84,12 @@ int main(const int argc, const char* argv[]) {
 
   // -----------------------------------------------------------------------
 
+  cudaEvent_t start, stop;
+  checkCudaErrors(cudaEventCreate(&start));
+  checkCudaErrors(cudaEventCreate(&stop));
+
+  checkCudaErrors(cudaEventRecord(start, stream));
+
   gpu::DispatchKernel(gpu::k_InitRandomVec4,
                       params.my_num_blocks,
                       stream,
@@ -101,11 +107,17 @@ int main(const int argc, const char* argv[]) {
 
   gpu::Dispatch_SortKernels(pipe->one_sweep, n, params.my_num_blocks, stream);
 
-  gpu::Dispatch_CountUnique(pipe->one_sweep.getSort(),
-                            pipe->u_num_unique,
-                            n,
-                            params.my_num_blocks,
-                            stream);
+  // gpu::Dispatch_CountUnique(pipe->one_sweep.getSort(),
+  //                           pipe->u_num_unique,
+  //                           n,
+  //                           params.my_num_blocks,
+  //                           stream);
+  checkCudaErrors(cudaStreamSynchronize(stream));
+
+  auto it = std::unique(pipe->one_sweep.getSort(),
+                        pipe->one_sweep.getSort() + n,
+                        std::equal_to<unsigned int>());
+  *pipe->u_num_unique = std::distance(pipe->one_sweep.getSort(), it);
 
   gpu::Dispatch_BuildRadixTree(pipe->u_num_unique,
                                pipe->one_sweep.getSort(),
@@ -184,15 +196,15 @@ int main(const int argc, const char* argv[]) {
     }
   }
 
-  // peek 10 oct nodes, cornor, cell_size, parent, child_node_mask
-  for (int i = 0; i < 10; i++) {
-    std::cout << "oct_nodes[" << i << "]:\n";
-    std::cout << "\t corner: " << pipe->oct.u_corner[i] << "\n";
-    std::cout << "\t cell_size: " << pipe->oct.u_cell_size[i] << "\n";
-    std::cout << "\t parent: " << pipe->brt.parent[i] << "\n";
-    std::cout << "\t child_node_mask: " << pipe->oct.u_child_node_mask[i]
-              << "\n\n";
-  }
+  // // peek 10 oct nodes, cornor, cell_size, parent, child_node_mask
+  // for (int i = 0; i < 10; i++) {
+  //   std::cout << "oct_nodes[" << i << "]:\n";
+  //   std::cout << "\t corner: " << pipe->oct.u_corner[i] << "\n";
+  //   std::cout << "\t cell_size: " << pipe->oct.u_cell_size[i] << "\n";
+  //   std::cout << "\t parent: " << pipe->brt.parent[i] << "\n";
+  //   std::cout << "\t child_node_mask: " << pipe->oct.u_child_node_mask[i]
+  //             << "\n\n";
+  // }
 
   checkCudaErrors(cudaStreamDestroy(stream));
   return 0;
